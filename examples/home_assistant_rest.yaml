@@ -1,0 +1,31 @@
+rest_command:
+  hermes_metric:
+    url: "http://127.0.0.1:8080/api/ingest"
+    method: post
+    headers:
+      authorization: "Bearer !secret hermes_ingest_token"
+      content-type: "application/json"
+    payload: >
+      {
+        "key": "{{ key }}",
+        "name": "{{ name }}",
+        "unit": "{{ unit }}",
+        "category": "home",
+        "sort_order": {{ sort_order }},
+        "value": {{ value }}
+      }
+
+automation:
+  - alias: "Hermes record front door motion count"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.front_door_motion
+        to: "on"
+    action:
+      - service: rest_command.hermes_metric
+        data:
+          key: front_door_motion
+          name: 门口触发次数
+          unit: 次
+          sort_order: 10
+          value: "{{ states('counter.front_door_motion_daily') | int }}"

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hermes Dashboard</title>
+    <link rel="stylesheet" href="/app.css?v=2" />
+  </head>
+  <body>
+    <main class="shell">
+      <section id="loginView" class="login-view" hidden>
+        <form id="loginForm" class="login-panel">
+          <div>
+            <p class="kicker">Hermes</p>
+            <h1>家庭与市场指标</h1>
+          </div>
+          <label>
+            <span>访问密码</span>
+            <input id="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit">登录</button>
+          <p id="loginError" class="error" role="alert"></p>
+        </form>
+      </section>
+
+      <section id="dashboardView" class="dashboard" hidden>
+        <header class="topbar">
+          <div>
+            <p class="kicker">Hermes</p>
+            <h1>实时指标</h1>
+          </div>
+          <button id="logoutButton" class="ghost" type="button">退出</button>
+        </header>
+
+        <section id="metricGrid" class="metric-grid" aria-live="polite"></section>
+
+        <section class="trend-section">
+          <div class="trend-head">
+            <div>
+              <p class="kicker">History</p>
+              <h2 id="chartTitle">历史趋势</h2>
+            </div>
+            <div class="controls">
+              <select id="metricSelect" aria-label="选择指标"></select>
+              <div class="range-tabs" role="group" aria-label="时间范围">
+                <button data-range="1">24h</button>
+                <button data-range="7" class="active">7d</button>
+                <button data-range="30">30d</button>
+              </div>
+            </div>
+          </div>
+          <canvas id="trendCanvas" width="1200" height="460"></canvas>
+          <p id="emptyState" class="empty-state" hidden>暂无历史数据</p>
+        </section>
+      </section>
+    </main>
+    <script src="/app.js?v=2"></script>
+  </body>
+</html>
