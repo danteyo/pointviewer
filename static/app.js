@@ -2,9 +2,19 @@ const state = {
   metrics: [],
   selectedKey: "",
   rangeDays: 7,
+  sources: [],
+  selectedSourceId: "",
 };
 
 const $ = (id) => document.getElementById(id);
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
 
 function formatNumber(value) {
   if (value === null || value === undefined) return "--";
@@ -37,7 +47,15 @@ async function api(path, options = {}) {
 
 function show(view) {
   $("loginView").hidden = view !== "login";
-  $("dashboardView").hidden = view !== "dashboard";
+  $("dashboardView").hidden = view === "login";
+}
+
+function setPanel(panel) {
+  $("metricsPanel").hidden = panel !== "metrics";
+  $("configPanel").hidden = panel !== "config";
+  $("metricsTab").classList.toggle("active", panel === "metrics");
+  $("configTab").classList.toggle("active", panel === "config");
+  if (panel === "config") loadConfig();
 }
 
 function renderCards() {
@@ -49,10 +67,10 @@ function renderCards() {
     card.className = `metric-card ${metric.key === state.selectedKey ? "active" : ""}`;
     card.dataset.category = metric.category;
     card.innerHTML = `
-      <p class="name">${metric.name}</p>
+      <p class="name">${escapeHtml(metric.name)}</p>
       <p class="value">
         <span>${formatNumber(metric.value)}</span>
-        <span class="unit">${metric.unit || ""}</span>
+        <span class="unit">${escapeHtml(metric.unit || "")}</span>
       </p>
       <span class="time">${formatTime(metric.recorded_at)}</span>
     `;
@@ -188,6 +206,170 @@ function drawChart(metric, points) {
   ctx.textAlign = "left";
 }
 
+async function loadConfig() {
+  const data = await api("/api/cron-config");
+  state.sources = data.sources;
+  if (!state.selectedSourceId && state.sources.length) state.selectedSourceId = state.sources[0].id;
+  renderSources();
+  renderSourceForm(currentSource() || newSource());
+}
+
+function currentSource() {
+  return state.sources.find((source) => source.id === state.selectedSourceId);
+}
+
+function newSource() {
+  return {
+    id: "",
+    name: "",
+    output_dir: "~/.hermes/cron/output/",
+    file_glob: "*.md",
+    schedule: "",
+    enabled: 1,
+    rules: [],
+  };
+}
+
+function renderSources() {
+  const list = $("sourceList");
+  list.innerHTML = "";
+  for (const source of state.sources) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `source-item ${source.id === state.selectedSourceId ? "active" : ""}`;
+    button.innerHTML = `
+      <strong>${escapeHtml(source.name)}</strong>
+      <span>${escapeHtml(source.schedule || source.id)}</span>
+      <small>${source.rules.length} 条规则 · ${source.enabled ? "启用" : "停用"}</small>
+    `;
+    button.addEventListener("click", () => {
+      state.selectedSourceId = source.id;
+      renderSources();
+      renderSourceForm(source);
+    });
+    list.appendChild(button);
+  }
+}
+
+function renderSourceForm(source) {
+  $("sourceId").value = source.id || "";
+  $("sourceName").value = source.name || "";
+  $("sourceDir").value = source.output_dir || "";
+  $("sourceGlob").value = source.file_glob || "*.md";
+  $("sourceSchedule").value = source.schedule || "";
+  $("sourceEnabled").checked = Boolean(source.enabled);
+  $("rulesList").innerHTML = "";
+  for (const rule of source.rules || []) addRuleRow(rule);
+  $("configMessage").textContent = "";
+}
+
+function addRuleRow(rule = {}) {
+  const row = document.createElement("div");
+  row.className = "rule-row";
+  row.innerHTML = `
+    <label>
+      <span>指标 key</span>
+      <input data-field="metric_key" value="${escapeHtml(rule.metric_key || "")}" placeholder="ha_motion_count" required />
+    </label>
+    <label>
+      <span>显示名称</span>
+      <input data-field="name" value="${escapeHtml(rule.name || "")}" placeholder="门口触发次数" required />
+    </label>
+    <label>
+      <span>单位</span>
+      <input data-field="unit" value="${escapeHtml(rule.unit || "")}" placeholder="次" />
+    </label>
+    <label>
+      <span>分类</span>
+      <input data-field="category" value="${escapeHtml(rule.category || "cron")}" />
+    </label>
+    <label>
+      <span>排序</span>
+      <input data-field="sort_order" type="number" value="${escapeHtml(rule.sort_order || 100)}" />
+    </label>
+    <label>
+      <span>捕获分组</span>
+      <input data-field="group_index" type="number" min="1" value="${escapeHtml(rule.group_index || 1)}" />
+    </label>
+    <label>
+      <span>倍率</span>
+      <input data-field="value_scale" type="number" step="0.0001" value="${escapeHtml(rule.value_scale || 1)}" />
+    </label>
+    <label class="check-row">
+      <input data-field="enabled" type="checkbox" ${rule.enabled === 0 ? "" : "checked"} />
+      <span>启用</span>
+    </label>
+    <label class="wide">
+      <span>正则表达式</span>
+      <input data-field="pattern" value="${escapeHtml(rule.pattern || "")}" placeholder="门口触发次数[:：]\\s*(\\d+)" required />
+    </label>
+    <button class="ghost remove-rule" type="button">删除</button>
+  `;
+  row.querySelector(".remove-rule").addEventListener("click", () => row.remove());
+  $("rulesList").appendChild(row);
+}
+
+function collectSourceForm() {
+  const rules = [...document.querySelectorAll(".rule-row")].map((row) => {
+    const value = (field) => row.querySelector(`[data-field="${field}"]`);
+    return {
+      metric_key: value("metric_key").value.trim(),
+      name: value("name").value.trim(),
+      unit: value("unit").value.trim(),
+      category: value("category").value.trim() || "cron",
+      sort_order: Number(value("sort_order").value || 100),
+      group_index: Number(value("group_index").value || 1),
+      value_scale: Number(value("value_scale").value || 1),
+      pattern: value("pattern").value.trim(),
+      enabled: value("enabled").checked,
+    };
+  });
+  return {
+    id: $("sourceId").value.trim(),
+    name: $("sourceName").value.trim(),
+    output_dir: $("sourceDir").value.trim(),
+    file_glob: $("sourceGlob").value.trim() || "*.md",
+    schedule: $("sourceSchedule").value.trim(),
+    enabled: $("sourceEnabled").checked,
+    rules,
+  };
+}
+
+async function saveSource(event) {
+  event.preventDefault();
+  $("configMessage").textContent = "";
+  const source = collectSourceForm();
+  const result = await api("/api/cron-sources", {
+    method: "POST",
+    body: JSON.stringify(source),
+  });
+  state.selectedSourceId = result.id;
+  $("configMessage").textContent = "已保存";
+  await loadConfig();
+}
+
+async function deleteCurrentSource() {
+  const source = currentSource();
+  if (!source) return;
+  if (!window.confirm(`删除 ${source.name} 及其提取规则？历史指标数据会保留。`)) return;
+  await api("/api/cron-sources/delete", {
+    method: "POST",
+    body: JSON.stringify({ id: source.id }),
+  });
+  state.selectedSourceId = "";
+  await loadConfig();
+}
+
+async function scanNow() {
+  $("configMessage").textContent = "扫描中...";
+  const result = await api("/api/cron-scan", {
+    method: "POST",
+    body: JSON.stringify({ limit_per_source: 10 }),
+  });
+  $("configMessage").textContent = `扫描完成：${result.files} 个文件，新增 ${result.points} 个点`;
+  await loadMetrics();
+}
+
 async function boot() {
   $("loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -198,6 +380,7 @@ async function boot() {
         body: JSON.stringify({ password: $("password").value }),
       });
       show("dashboard");
+      setPanel("metrics");
       await loadMetrics();
     } catch (error) {
       $("loginError").textContent = error.message;
@@ -208,6 +391,18 @@ async function boot() {
     await api("/api/logout", { method: "POST", body: "{}" });
     show("login");
   });
+
+  $("metricsTab").addEventListener("click", () => setPanel("metrics"));
+  $("configTab").addEventListener("click", () => setPanel("config"));
+  $("newSourceButton").addEventListener("click", () => {
+    state.selectedSourceId = "";
+    renderSources();
+    renderSourceForm(newSource());
+  });
+  $("addRuleButton").addEventListener("click", () => addRuleRow());
+  $("sourceForm").addEventListener("submit", saveSource);
+  $("scanButton").addEventListener("click", scanNow);
+  $("deleteSourceButton").addEventListener("click", deleteCurrentSource);
 
   $("metricSelect").addEventListener("change", (event) => selectMetric(event.target.value));
   document.querySelectorAll("[data-range]").forEach((button) => {
@@ -222,6 +417,7 @@ async function boot() {
   const session = await api("/api/session");
   if (session.authenticated) {
     show("dashboard");
+    setPanel("metrics");
     await loadMetrics();
   } else {
     show("login");

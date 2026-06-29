@@ -132,6 +132,15 @@ button:hover {
   background: #eaf0f1;
 }
 
+.danger {
+  border-color: rgba(180, 35, 24, 0.28);
+  color: var(--danger);
+}
+
+.danger:hover {
+  background: rgba(180, 35, 24, 0.08);
+}
+
 .error {
   min-height: 20px;
   margin: -8px 0 0;
@@ -149,6 +158,35 @@ button:hover {
   align-items: flex-start;
   gap: 18px;
   margin-bottom: 28px;
+}
+
+.top-actions,
+.form-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.view-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 64px);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f2f5f6;
+}
+
+.view-tabs button {
+  min-height: 34px;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.view-tabs button.active {
+  background: var(--ink);
+  color: #fff;
 }
 
 .metric-grid {
@@ -269,6 +307,131 @@ canvas {
   color: var(--muted);
 }
 
+.config-panel {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.source-list,
+.source-form {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.source-list {
+  padding: 16px;
+}
+
+.source-form {
+  padding: 18px;
+}
+
+.section-head,
+.rules-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.section-head h2,
+.rules-head h3 {
+  margin: 0;
+}
+
+#sourceList {
+  display: grid;
+  gap: 8px;
+}
+
+.source-item {
+  width: 100%;
+  min-height: 82px;
+  display: grid;
+  gap: 5px;
+  justify-items: start;
+  align-content: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+}
+
+.source-item:hover {
+  background: #f5f7f8;
+}
+
+.source-item.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 139, 141, 0.14);
+}
+
+.source-item span,
+.source-item small {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.check-row {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: end;
+}
+
+.check-row input {
+  width: 18px;
+  min-height: 18px;
+}
+
+.rules-list {
+  display: grid;
+  gap: 12px;
+}
+
+.rule-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) 86px;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.rule-row .wide {
+  grid-column: 1 / 5;
+}
+
+.remove-rule {
+  align-self: end;
+}
+
+.config-message {
+  min-height: 22px;
+  margin: 14px 0 0;
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+
 @media (max-width: 720px) {
   .shell {
     width: min(100% - 20px, 1180px);
@@ -276,7 +439,10 @@ canvas {
 
   .topbar,
   .trend-head,
-  .controls {
+  .controls,
+  .top-actions,
+  .section-head,
+  .rules-head {
     display: grid;
     width: 100%;
   }
@@ -291,5 +457,15 @@ canvas {
 
   .range-tabs {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  .config-panel,
+  .form-grid,
+  .rule-row {
+    grid-template-columns: 1fr;
+  }
+
+  .rule-row .wide {
+    grid-column: auto;
   }
 }

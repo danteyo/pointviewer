@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes Dashboard</title>
-    <link rel="stylesheet" href="/app.css?v=2" />
+    <link rel="stylesheet" href="/app.css?v=3" />
   </head>
   <body>
     <main class="shell">
@@ -29,31 +29,103 @@
             <p class="kicker">Hermes</p>
             <h1>实时指标</h1>
           </div>
-          <button id="logoutButton" class="ghost" type="button">退出</button>
+          <div class="top-actions">
+            <div class="view-tabs" role="group" aria-label="页面">
+              <button id="metricsTab" class="active" type="button">指标</button>
+              <button id="configTab" type="button">配置</button>
+            </div>
+            <button id="logoutButton" class="ghost" type="button">退出</button>
+          </div>
         </header>
 
-        <section id="metricGrid" class="metric-grid" aria-live="polite"></section>
+        <section id="metricsPanel">
+          <section id="metricGrid" class="metric-grid" aria-live="polite"></section>
 
-        <section class="trend-section">
-          <div class="trend-head">
-            <div>
-              <p class="kicker">History</p>
-              <h2 id="chartTitle">历史趋势</h2>
-            </div>
-            <div class="controls">
-              <select id="metricSelect" aria-label="选择指标"></select>
-              <div class="range-tabs" role="group" aria-label="时间范围">
-                <button data-range="1">24h</button>
-                <button data-range="7" class="active">7d</button>
-                <button data-range="30">30d</button>
+          <section class="trend-section">
+            <div class="trend-head">
+              <div>
+                <p class="kicker">History</p>
+                <h2 id="chartTitle">历史趋势</h2>
+              </div>
+              <div class="controls">
+                <select id="metricSelect" aria-label="选择指标"></select>
+                <div class="range-tabs" role="group" aria-label="时间范围">
+                  <button data-range="1">24h</button>
+                  <button data-range="7" class="active">7d</button>
+                  <button data-range="30">30d</button>
+                </div>
               </div>
             </div>
-          </div>
-          <canvas id="trendCanvas" width="1200" height="460"></canvas>
-          <p id="emptyState" class="empty-state" hidden>暂无历史数据</p>
+            <canvas id="trendCanvas" width="1200" height="460"></canvas>
+            <p id="emptyState" class="empty-state" hidden>暂无历史数据</p>
+          </section>
+        </section>
+
+        <section id="configPanel" class="config-panel" hidden>
+          <aside class="source-list">
+            <div class="section-head">
+              <div>
+                <p class="kicker">Sources</p>
+                <h2>定时任务</h2>
+              </div>
+              <button id="newSourceButton" type="button">新增</button>
+            </div>
+            <div id="sourceList"></div>
+          </aside>
+
+          <form id="sourceForm" class="source-form">
+            <div class="section-head">
+              <div>
+                <p class="kicker">Tracking</p>
+                <h2>关注数据</h2>
+              </div>
+              <div class="form-actions">
+                <button id="deleteSourceButton" class="ghost danger" type="button">删除</button>
+                <button id="scanButton" class="ghost" type="button">立即扫描</button>
+                <button type="submit">保存</button>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <label>
+                <span>任务 ID</span>
+                <input id="sourceId" name="id" required />
+              </label>
+              <label>
+                <span>名称</span>
+                <input id="sourceName" name="name" required />
+              </label>
+              <label class="wide">
+                <span>输出目录</span>
+                <input id="sourceDir" name="output_dir" placeholder="~/.hermes/cron/output/..." required />
+              </label>
+              <label>
+                <span>文件匹配</span>
+                <input id="sourceGlob" name="file_glob" value="*.md" required />
+              </label>
+              <label>
+                <span>调度说明</span>
+                <input id="sourceSchedule" name="schedule" placeholder="18:30 每日" />
+              </label>
+              <label class="check-row">
+                <input id="sourceEnabled" name="enabled" type="checkbox" checked />
+                <span>启用</span>
+              </label>
+            </div>
+
+            <div class="rules-head">
+              <div>
+                <p class="kicker">Rules</p>
+                <h3>提取规则</h3>
+              </div>
+              <button id="addRuleButton" class="ghost" type="button">添加规则</button>
+            </div>
+            <div id="rulesList" class="rules-list"></div>
+            <p id="configMessage" class="config-message" role="status"></p>
+          </form>
         </section>
       </section>
     </main>
-    <script src="/app.js?v=2"></script>
+    <script src="/app.js?v=3"></script>
   </body>
 </html>

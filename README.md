@@ -8,6 +8,7 @@
 - SQLite 保存指标定义和历史点位。
 - 当前指标卡片与 24h / 7d / 30d 趋势图。
 - `/api/ingest` 写入接口，适合定时任务、Shell 脚本或 Home Assistant 自动化调用。
+- 页面内配置 Hermes cron 输出目录和 Markdown 数字提取规则。
 - 无第三方运行依赖，Python 3 标准库即可启动。
 
 ## 本地启动
@@ -64,6 +65,53 @@ curl -X POST http://127.0.0.1:8080/api/ingest \
 - `note`: 可选备注。
 
 `examples/ingest_market.sh` 和 `examples/home_assistant_rest.yaml` 里分别放了 Shell 定时任务与 Home Assistant `rest_command` 的接入样例。
+
+## 跟踪 Hermes cron 输出
+
+应用会默认预置这些任务源：
+
+- `241db7b2b9e7`: 每日热点摘要，`17:30 每日`
+- `ced3e233f5d9`: 体坛简报，`09:00 隔天`
+- `e6a852568717`: 财经简报，`11:30 工作日`
+- `81fb82f53914`: HA日报，`18:30 每日`
+
+默认目录是 `~/.hermes/cron/output/<任务ID>`，文件匹配是 `*.md`。登录页面后打开「配置」，可以维护任务源和关注数据规则。
+
+每条提取规则会从 Markdown 文本里跑一个正则表达式，并把指定捕获分组解析成数字。例如：
+
+```text
+门口触发次数[:：]\s*(\d+)
+客厅温度[:：]\s*([\d.]+)
+金价[:：]\s*([\d,.]+)
+```
+
+规则字段：
+
+- `指标 key`: 历史指标唯一 ID，例如 `front_door_motion`。
+- `显示名称`: 卡片和图表上的名称。
+- `单位`: 例如 `次`、`°C`、`USD/oz`。
+- `分类`: 例如 `home`、`market`、`sports`。
+- `排序`: 卡片排序。
+- `正则表达式`: 用括号捕获你要跟踪的数字。
+- `捕获分组`: 默认 `1`，表示使用第一对括号。
+- `倍率`: 默认 `1`，需要单位换算时可以填 `0.01`、`1000` 等。
+
+手动扫描：
+
+```bash
+set -a
+source .env
+set +a
+python3 scripts/scan_cron_outputs.py --limit-per-source 10
+```
+
+每 10 分钟扫描一次的 crontab 示例：
+
+```cron
+*/10 * * * * cd /opt/hermes-dashboard && set -a && . ./.env && set +a && /usr/bin/python3 scripts/scan_cron_outputs.py --limit-per-source 10 >> data/cron-scan.log 2>&1
+```
+
+也可以在「配置」页点「立即扫描」，适合调试新规则。
 
 ## Hermes 部署
 

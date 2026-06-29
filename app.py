@@ -12,6 +12,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import sqlite3
 import time
@@ -29,6 +30,43 @@ DB_PATH = Path(os.environ.get("HERMES_DB_PATH", DATA_DIR / "hermes.db"))
 HOST = os.environ.get("HERMES_HOST", "127.0.0.1")
 PORT = int(os.environ.get("HERMES_PORT", "8080"))
 SESSION_COOKIE = "hermes_session"
+DEFAULT_CRON_BASE = "~/.hermes/cron/output"
+
+
+DEFAULT_CRON_SOURCES = [
+    {
+        "id": "241db7b2b9e7",
+        "name": "每日热点摘要",
+        "output_dir": f"{DEFAULT_CRON_BASE}/241db7b2b9e7",
+        "file_glob": "*.md",
+        "schedule": "17:30 每日",
+        "enabled": 1,
+    },
+    {
+        "id": "ced3e233f5d9",
+        "name": "体坛简报",
+        "output_dir": f"{DEFAULT_CRON_BASE}/ced3e233f5d9",
+        "file_glob": "*.md",
+        "schedule": "09:00 隔天",
+        "enabled": 1,
+    },
+    {
+        "id": "e6a852568717",
+        "name": "财经简报",
+        "output_dir": f"{DEFAULT_CRON_BASE}/e6a852568717",
+        "file_glob": "*.md",
+        "schedule": "11:30 工作日",
+        "enabled": 1,
+    },
+    {
+        "id": "81fb82f53914",
+        "name": "HA日报",
+        "output_dir": f"{DEFAULT_CRON_BASE}/81fb82f53914",
+        "file_glob": "*.md",
+        "schedule": "18:30 每日",
+        "enabled": 1,
+    },
+]
 
 
 def env_required(name: str) -> str:
@@ -123,8 +161,59 @@ def init_db() -> None:
 
             CREATE INDEX IF NOT EXISTS idx_metric_points_lookup
                 ON metric_points(metric_key, recorded_at);
+
+            CREATE TABLE IF NOT EXISTS cron_sources (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                output_dir TEXT NOT NULL,
+                file_glob TEXT NOT NULL DEFAULT '*.md',
+                schedule TEXT NOT NULL DEFAULT '',
+                enabled INTEGER NOT NULL DEFAULT 1,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS cron_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id TEXT NOT NULL REFERENCES cron_sources(id) ON DELETE CASCADE,
+                metric_key TEXT NOT NULL,
+                name TEXT NOT NULL,
+                unit TEXT NOT NULL DEFAULT '',
+                category TEXT NOT NULL DEFAULT 'cron',
+                sort_order INTEGER NOT NULL DEFAULT 100,
+                pattern TEXT NOT NULL,
+                group_index INTEGER NOT NULL DEFAULT 1,
+                value_scale REAL NOT NULL DEFAULT 1,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS cron_rule_runs (
+                rule_id INTEGER NOT NULL REFERENCES cron_rules(id) ON DELETE CASCADE,
+                file_path TEXT NOT NULL,
+                file_mtime INTEGER NOT NULL,
+                recorded_at INTEGER NOT NULL,
+                PRIMARY KEY (rule_id, file_path, file_mtime)
+            );
             """
         )
+        count = conn.execute("SELECT COUNT(*) FROM cron_sources").fetchone()[0]
+        if count == 0:
+            for source in DEFAULT_CRON_SOURCES:
+                conn.execute(
+                    """
+                    INSERT INTO cron_sources(id, name, output_dir, file_glob, schedule, enabled, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        source["id"],
+                        source["name"],
+                        source["output_dir"],
+                        source["file_glob"],
+                        source["schedule"],
+                        source["enabled"],
+                        now(),
+                    ),
+                )
 
 
 def latest_metrics() -> list[dict[str, object]]:
@@ -194,6 +283,177 @@ def upsert_point(item: dict[str, object]) -> None:
             """,
             (metric_key, value, recorded_at, note),
         )
+
+
+def list_cron_config() -> dict[str, object]:
+    with connect() as conn:
+        source_rows = conn.execute(
+            """
+            SELECT * FROM cron_sources
+            ORDER BY enabled DESC, name
+            """
+        ).fetchall()
+        rule_rows = conn.execute(
+            """
+            SELECT * FROM cron_rules
+            ORDER BY source_id, enabled DESC, sort_order, name
+            """
+        ).fetchall()
+    sources = [dict(row) for row in source_rows]
+    rules_by_source: dict[str, list[dict[str, object]]] = {}
+    for row in rule_rows:
+        rule = dict(row)
+        rules_by_source.setdefault(str(rule["source_id"]), []).append(rule)
+    for source in sources:
+        source["rules"] = rules_by_source.get(str(source["id"]), [])
+    return {"sources": sources}
+
+
+def clean_source_id(value: str) -> str:
+    cleaned = re.sub(r"[^a-zA-Z0-9_-]+", "_", value.strip()).strip("_")
+    return cleaned or secrets.token_hex(6)
+
+
+def save_cron_source(data: dict[str, object]) -> dict[str, object]:
+    source_id = clean_source_id(str(data.get("id") or data.get("name") or "source"))
+    name = str(data.get("name") or source_id).strip()
+    output_dir = str(data.get("output_dir") or "").strip()
+    file_glob = str(data.get("file_glob") or "*.md").strip()
+    schedule = str(data.get("schedule") or "").strip()
+    enabled = 1 if data.get("enabled", True) else 0
+    rules = data.get("rules") or []
+    if not output_dir:
+        raise ValueError("output_dir is required")
+    if not isinstance(rules, list):
+        raise ValueError("rules must be a list")
+
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO cron_sources(id, name, output_dir, file_glob, schedule, enabled, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                output_dir = excluded.output_dir,
+                file_glob = excluded.file_glob,
+                schedule = excluded.schedule,
+                enabled = excluded.enabled,
+                updated_at = excluded.updated_at
+            """,
+            (source_id, name, output_dir, file_glob, schedule, enabled, now()),
+        )
+        conn.execute("DELETE FROM cron_rules WHERE source_id = ?", (source_id,))
+        for index, rule in enumerate(rules):
+            if not isinstance(rule, dict):
+                continue
+            pattern = str(rule.get("pattern") or "").strip()
+            metric_key = str(rule.get("metric_key") or "").strip()
+            if not pattern or not metric_key:
+                continue
+            conn.execute(
+                """
+                INSERT INTO cron_rules(
+                    source_id, metric_key, name, unit, category, sort_order, pattern,
+                    group_index, value_scale, enabled, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    source_id,
+                    metric_key,
+                    str(rule.get("name") or metric_key).strip(),
+                    str(rule.get("unit") or "").strip(),
+                    str(rule.get("category") or "cron").strip(),
+                    int(rule.get("sort_order") or (100 + index)),
+                    pattern,
+                    int(rule.get("group_index") or 1),
+                    float(rule.get("value_scale") or 1),
+                    1 if rule.get("enabled", True) else 0,
+                    now(),
+                ),
+            )
+    return {"ok": True, "id": source_id}
+
+
+def delete_cron_source(source_id: str) -> None:
+    with connect() as conn:
+        conn.execute("DELETE FROM cron_sources WHERE id = ?", (source_id,))
+
+
+def parse_number(value: str) -> float:
+    cleaned = value.strip().replace(",", "")
+    match = re.search(r"-?\d+(?:\.\d+)?", cleaned)
+    if not match:
+        raise ValueError(f"cannot parse number from {value!r}")
+    return float(match.group(0))
+
+
+def scan_cron_outputs(limit_per_source: int = 5, rescan: bool = False) -> dict[str, object]:
+    summary: dict[str, object] = {"sources": 0, "files": 0, "points": 0, "errors": []}
+    with connect() as conn:
+        sources = conn.execute("SELECT * FROM cron_sources WHERE enabled = 1 ORDER BY name").fetchall()
+        rules = conn.execute("SELECT * FROM cron_rules WHERE enabled = 1 ORDER BY sort_order, name").fetchall()
+        rules_by_source: dict[str, list[sqlite3.Row]] = {}
+        for rule in rules:
+            rules_by_source.setdefault(str(rule["source_id"]), []).append(rule)
+
+    for source in sources:
+        source_rules = rules_by_source.get(str(source["id"]), [])
+        if not source_rules:
+            continue
+        summary["sources"] = int(summary["sources"]) + 1
+        output_dir = Path(str(source["output_dir"])).expanduser()
+        files = sorted(output_dir.glob(str(source["file_glob"])), key=lambda item: item.stat().st_mtime, reverse=True)
+        for path in files[:limit_per_source]:
+            try:
+                content = path.read_text(encoding="utf-8")
+                file_mtime = int(path.stat().st_mtime)
+                recorded_at = file_mtime
+                summary["files"] = int(summary["files"]) + 1
+                for rule in source_rules:
+                    run_exists = False
+                    if not rescan:
+                        with connect() as conn:
+                            run_exists = bool(
+                                conn.execute(
+                                    """
+                                    SELECT 1 FROM cron_rule_runs
+                                    WHERE rule_id = ? AND file_path = ? AND file_mtime = ?
+                                    """,
+                                    (rule["id"], str(path), file_mtime),
+                                ).fetchone()
+                            )
+                    if run_exists:
+                        continue
+                    pattern = re.compile(str(rule["pattern"]), re.MULTILINE | re.IGNORECASE)
+                    match = pattern.search(content)
+                    if not match:
+                        continue
+                    value = parse_number(match.group(int(rule["group_index"]))) * float(rule["value_scale"])
+                    upsert_point(
+                        {
+                            "key": rule["metric_key"],
+                            "name": rule["name"],
+                            "unit": rule["unit"],
+                            "category": rule["category"],
+                            "sort_order": rule["sort_order"],
+                            "value": value,
+                            "recorded_at": recorded_at,
+                            "note": f"{source['name']}: {path.name}",
+                        }
+                    )
+                    with connect() as conn:
+                        conn.execute(
+                            """
+                            INSERT OR REPLACE INTO cron_rule_runs(rule_id, file_path, file_mtime, recorded_at)
+                            VALUES (?, ?, ?, ?)
+                            """,
+                            (rule["id"], str(path), file_mtime, recorded_at),
+                        )
+                    summary["points"] = int(summary["points"]) + 1
+            except Exception as exc:
+                summary["errors"].append({"file": str(path), "error": str(exc)})
+    return summary
 
 
 class HermesHandler(SimpleHTTPRequestHandler):
@@ -266,6 +526,10 @@ class HermesHandler(SimpleHTTPRequestHandler):
             else:
                 self.send_json(HTTPStatus.OK, result)
             return
+        if parsed.path == "/api/cron-config":
+            if self.require_session():
+                self.send_json(HTTPStatus.OK, list_cron_config())
+            return
         return super().do_GET()
 
     def do_POST(self) -> None:
@@ -305,6 +569,34 @@ class HermesHandler(SimpleHTTPRequestHandler):
                 for item in items:
                     upsert_point(item)
                 self.send_json(HTTPStatus.CREATED, {"ok": True, "count": len(items)})
+                return
+            if parsed.path == "/api/cron-sources":
+                if not self.require_session():
+                    return
+                data = self.read_json()
+                if not isinstance(data, dict):
+                    raise ValueError("source payload must be an object")
+                self.send_json(HTTPStatus.OK, save_cron_source(data))
+                return
+            if parsed.path == "/api/cron-sources/delete":
+                if not self.require_session():
+                    return
+                data = self.read_json()
+                if not isinstance(data, dict):
+                    raise ValueError("delete payload must be an object")
+                delete_cron_source(str(data.get("id") or ""))
+                self.send_json(HTTPStatus.OK, {"ok": True})
+                return
+            if parsed.path == "/api/cron-scan":
+                if not self.require_session():
+                    return
+                data = self.read_json()
+                options = data if isinstance(data, dict) else {}
+                result = scan_cron_outputs(
+                    limit_per_source=int(options.get("limit_per_source") or 5),
+                    rescan=bool(options.get("rescan") or False),
+                )
+                self.send_json(HTTPStatus.OK, result)
                 return
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
