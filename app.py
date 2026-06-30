@@ -388,6 +388,11 @@ def save_cron_source(data: dict[str, object]) -> dict[str, object]:
             metric_key = str(rule.get("metric_key") or "").strip()
             if not pattern or not metric_key:
                 continue
+            rule_name = str(rule.get("name") or metric_key).strip()
+            rule_unit = str(rule.get("unit") or "").strip()
+            rule_category = str(rule.get("category") or "cron").strip()
+            rule_sort_order = int(rule.get("sort_order") or (100 + index))
+            rule_enabled = 1 if rule.get("enabled", True) else 0
             conn.execute(
                 """
                 INSERT INTO cron_rules(
@@ -399,17 +404,31 @@ def save_cron_source(data: dict[str, object]) -> dict[str, object]:
                 (
                     source_id,
                     metric_key,
-                    str(rule.get("name") or metric_key).strip(),
-                    str(rule.get("unit") or "").strip(),
-                    str(rule.get("category") or "cron").strip(),
-                    int(rule.get("sort_order") or (100 + index)),
+                    rule_name,
+                    rule_unit,
+                    rule_category,
+                    rule_sort_order,
                     pattern,
                     int(rule.get("group_index") or 1),
                     float(rule.get("value_scale") or 1),
-                    1 if rule.get("enabled", True) else 0,
+                    rule_enabled,
                     now(),
                 ),
             )
+            if rule_enabled:
+                conn.execute(
+                    """
+                    INSERT INTO metrics(key, name, unit, category, sort_order, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(key) DO UPDATE SET
+                        name = excluded.name,
+                        unit = excluded.unit,
+                        category = excluded.category,
+                        sort_order = excluded.sort_order,
+                        updated_at = excluded.updated_at
+                    """,
+                    (metric_key, rule_name, rule_unit, rule_category, rule_sort_order, now()),
+                )
     return {"ok": True, "id": source_id}
 
 
@@ -424,6 +443,15 @@ def parse_number(value: str) -> float:
     if not match:
         raise ValueError(f"cannot parse number from {value!r}")
     return float(match.group(0))
+
+
+def matched_value(match: re.Match[str], group_index: int) -> str:
+    try:
+        return match.group(group_index)
+    except IndexError as exc:
+        if group_index == 1 and not match.groups():
+            return match.group(0)
+        raise ValueError(f"pattern matched but capture group {group_index} does not exist") from exc
 
 
 def scan_cron_outputs(limit_per_source: int = 5, rescan: bool = False) -> dict[str, object]:
@@ -463,32 +491,41 @@ def scan_cron_outputs(limit_per_source: int = 5, rescan: bool = False) -> dict[s
                             )
                     if run_exists:
                         continue
-                    pattern = re.compile(str(rule["pattern"]), re.MULTILINE | re.IGNORECASE)
-                    match = pattern.search(content)
-                    if not match:
-                        continue
-                    value = parse_number(match.group(int(rule["group_index"]))) * float(rule["value_scale"])
-                    upsert_point(
-                        {
-                            "key": rule["metric_key"],
-                            "name": rule["name"],
-                            "unit": rule["unit"],
-                            "category": rule["category"],
-                            "sort_order": rule["sort_order"],
-                            "value": value,
-                            "recorded_at": recorded_at,
-                            "note": f"{source['name']}: {path.name}",
-                        }
-                    )
-                    with connect() as conn:
-                        conn.execute(
-                            """
-                            INSERT OR REPLACE INTO cron_rule_runs(rule_id, file_path, file_mtime, recorded_at)
-                            VALUES (?, ?, ?, ?)
-                            """,
-                            (rule["id"], str(path), file_mtime, recorded_at),
+                    try:
+                        pattern = re.compile(str(rule["pattern"]), re.MULTILINE | re.IGNORECASE)
+                        match = pattern.search(content)
+                        if not match:
+                            continue
+                        value = parse_number(matched_value(match, int(rule["group_index"]))) * float(rule["value_scale"])
+                        upsert_point(
+                            {
+                                "key": rule["metric_key"],
+                                "name": rule["name"],
+                                "unit": rule["unit"],
+                                "category": rule["category"],
+                                "sort_order": rule["sort_order"],
+                                "value": value,
+                                "recorded_at": recorded_at,
+                                "note": f"{source['name']}: {path.name}",
+                            }
                         )
-                    summary["points"] = int(summary["points"]) + 1
+                        with connect() as conn:
+                            conn.execute(
+                                """
+                                INSERT OR REPLACE INTO cron_rule_runs(rule_id, file_path, file_mtime, recorded_at)
+                                VALUES (?, ?, ?, ?)
+                                """,
+                                (rule["id"], str(path), file_mtime, recorded_at),
+                            )
+                        summary["points"] = int(summary["points"]) + 1
+                    except Exception as exc:
+                        summary["errors"].append(
+                            {
+                                "file": str(path),
+                                "rule": str(rule["name"]),
+                                "error": str(exc),
+                            }
+                        )
             except Exception as exc:
                 summary["errors"].append({"file": str(path), "error": str(exc)})
     return summary

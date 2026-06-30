@@ -341,14 +341,16 @@ function collectSourceForm() {
 async function saveSource(event) {
   event.preventDefault();
   $("configMessage").textContent = "";
+  $("configMessage").classList.remove("error-text");
   const source = collectSourceForm();
   const result = await api("/api/cron-sources", {
     method: "POST",
     body: JSON.stringify(source),
   });
   state.selectedSourceId = result.id;
-  $("configMessage").textContent = "已保存";
   await loadConfig();
+  await loadMetrics();
+  $("configMessage").textContent = "已保存，指标页已更新";
 }
 
 async function deleteCurrentSource() {
@@ -365,11 +367,14 @@ async function deleteCurrentSource() {
 
 async function scanNow() {
   $("configMessage").textContent = "扫描中...";
+  $("configMessage").classList.remove("error-text");
   const result = await api("/api/cron-scan", {
     method: "POST",
     body: JSON.stringify({ limit_per_source: 10 }),
   });
-  $("configMessage").textContent = `扫描完成：${result.files} 个文件，新增 ${result.points} 个点`;
+  const errorText = result.errors?.length ? `，${result.errors.length} 个错误：${result.errors[0].error}` : "";
+  $("configMessage").textContent = `扫描完成：${result.files} 个文件，新增 ${result.points} 个点${errorText}`;
+  $("configMessage").classList.toggle("error-text", Boolean(result.errors?.length));
   await loadMetrics();
 }
 
