@@ -160,7 +160,7 @@ async function refreshMetrics() {
   try {
     const result = await api("/api/cron-scan", {
       method: "POST",
-      body: JSON.stringify({ limit_per_source: 100 }),
+      body: JSON.stringify({ limit_per_source: 0 }),
     });
     await loadMetrics();
     const errorText = result.errors?.length ? `，${result.errors.length} 个错误：${result.errors[0].error}` : "";
@@ -453,7 +453,7 @@ async function scanNow() {
   $("configMessage").classList.remove("error-text");
   const result = await api("/api/cron-scan", {
     method: "POST",
-    body: JSON.stringify({ limit_per_source: 10 }),
+    body: JSON.stringify({ limit_per_source: 0 }),
   });
   const errorText = result.errors?.length ? `，${result.errors.length} 个错误：${result.errors[0].error}` : "";
   $("configMessage").textContent = `扫描完成：${result.files} 个文件，新增 ${result.points} 个点${errorText}`;

@@ -16,6 +16,7 @@ import re
 import secrets
 import sqlite3
 import time
+from datetime import datetime
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -495,7 +496,25 @@ def matched_value(match: re.Match[str], group_index: int) -> str:
         raise ValueError(f"pattern matched but capture group {group_index} does not exist") from exc
 
 
-def scan_cron_outputs(limit_per_source: int = 5, rescan: bool = False) -> dict[str, object]:
+def cron_file_recorded_at(path: Path) -> int:
+    name = path.name
+    match = re.search(
+        r"(?P<date>\d{4}-\d{2}-\d{2})(?:[_ T-](?P<hour>\d{2})[:.-]?(?P<minute>\d{2})(?:[:.-]?(?P<second>\d{2}))?)?",
+        name,
+    )
+    if match and match.group("hour"):
+        timestamp = (
+            f"{match.group('date')} "
+            f"{match.group('hour')}:{match.group('minute')}:{match.group('second') or '00'}"
+        )
+        try:
+            return int(datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").timestamp())
+        except ValueError:
+            pass
+    return int(path.stat().st_mtime)
+
+
+def scan_cron_outputs(limit_per_source: int = 0, rescan: bool = False) -> dict[str, object]:
     summary: dict[str, object] = {"sources": 0, "files": 0, "points": 0, "errors": []}
     with connect() as conn:
         sources = conn.execute("SELECT * FROM cron_sources WHERE enabled = 1 ORDER BY name").fetchall()
@@ -510,12 +529,13 @@ def scan_cron_outputs(limit_per_source: int = 5, rescan: bool = False) -> dict[s
             continue
         summary["sources"] = int(summary["sources"]) + 1
         output_dir = Path(str(source["output_dir"])).expanduser()
-        files = sorted(output_dir.glob(str(source["file_glob"])), key=lambda item: item.stat().st_mtime, reverse=True)
-        for path in files[:limit_per_source]:
+        files = sorted(output_dir.glob(str(source["file_glob"])), key=cron_file_recorded_at, reverse=True)
+        selected_files = files if limit_per_source <= 0 else files[:limit_per_source]
+        for path in selected_files:
             try:
                 content = path.read_text(encoding="utf-8")
                 file_mtime = int(path.stat().st_mtime)
-                recorded_at = file_mtime
+                recorded_at = cron_file_recorded_at(path)
                 summary["files"] = int(summary["files"]) + 1
                 for rule in source_rules:
                     run_exists = False
@@ -718,7 +738,7 @@ class HermesHandler(SimpleHTTPRequestHandler):
                 data = self.read_json()
                 options = data if isinstance(data, dict) else {}
                 result = scan_cron_outputs(
-                    limit_per_source=int(options.get("limit_per_source") or 5),
+                    limit_per_source=int(options.get("limit_per_source") or 0),
                     rescan=bool(options.get("rescan") or False),
                 )
                 self.send_json(HTTPStatus.OK, result)

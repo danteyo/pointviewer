@@ -18,7 +18,7 @@ from app import init_db, scan_cron_outputs
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Scan Hermes cron Markdown outputs into tracked metrics.")
-    parser.add_argument("--limit-per-source", type=int, default=5)
+    parser.add_argument("--limit-per-source", type=int, default=0, help="0 means scan every matching file.")
     parser.add_argument("--rescan", action="store_true", help="Reprocess files even if a rule already scanned them.")
     args = parser.parse_args()
 

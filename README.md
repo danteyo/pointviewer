@@ -101,20 +101,24 @@ curl -X POST http://127.0.0.1:8080/api/ingest \
 - `倍率`: 默认 `1`，需要单位换算时可以填 `0.01`、`1000` 等。
 - `置顶`: 最多 4 个，保存后显示在指标页最上方。
 
+扫描会读取来源目录下所有匹配的 Markdown 文件，并把每个匹配值按文件时间写入历史点。文件名里带有 `2026-06-29_1130`、`2026-06-29_11-30` 这类日期时间时会优先使用文件名时间；否则使用文件修改时间。首页展示最新一条，点开指标后按所选时间窗口展示对应历史点。
+
 手动扫描：
 
 ```bash
 set -a
 source .env
 set +a
-python3 scripts/scan_cron_outputs.py --limit-per-source 10
+python3 scripts/scan_cron_outputs.py
 ```
 
 每 10 分钟扫描一次的 crontab 示例：
 
 ```cron
-*/10 * * * * cd /opt/hermes-dashboard && set -a && . ./.env && set +a && /usr/bin/python3 scripts/scan_cron_outputs.py --limit-per-source 10 >> data/cron-scan.log 2>&1
+*/10 * * * * cd /opt/hermes-dashboard && set -a && . ./.env && set +a && /usr/bin/python3 scripts/scan_cron_outputs.py >> data/cron-scan.log 2>&1
 ```
+
+如果某个目录文件特别多，可以临时加 `--limit-per-source 100` 只扫描每个来源最新 100 个文件。
 
 也可以在「配置」页点「立即扫描」，适合调试新规则。
 保存规则后，指标页会先出现对应卡片；只有扫描到匹配文本后，卡片才会显示实际数值。
