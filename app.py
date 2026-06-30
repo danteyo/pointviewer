@@ -69,6 +69,8 @@ DEFAULT_CRON_SOURCES = [
     },
 ]
 
+DEMO_METRIC_KEYS = ("gold_spot", "spy", "front_door_motion", "living_room_temp")
+
 
 def env_required(name: str) -> str:
     value = os.environ.get(name, "")
@@ -207,6 +209,10 @@ def init_db() -> None:
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(cron_rules)").fetchall()}
         if "pinned" not in columns:
             conn.execute("ALTER TABLE cron_rules ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
+        conn.execute(
+            f"DELETE FROM metrics WHERE key IN ({','.join('?' for _ in DEMO_METRIC_KEYS)})",
+            DEMO_METRIC_KEYS,
+        )
         count = conn.execute("SELECT COUNT(*) FROM cron_sources").fetchone()[0]
         if count == 0:
             for source in DEFAULT_CRON_SOURCES:
