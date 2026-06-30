@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes Dashboard</title>
-    <link rel="stylesheet" href="/app.css?v=11" />
+    <link rel="stylesheet" href="/app.css?v=12" />
   </head>
   <body>
     <main class="shell">
@@ -108,6 +108,32 @@
               </label>
             </div>
 
+            <section class="source-preview">
+              <div class="rules-head">
+                <div>
+                  <p class="kicker">Preview</p>
+                  <h3>文件预览</h3>
+                </div>
+                <button id="refreshPreviewButton" class="ghost" type="button">刷新预览</button>
+              </div>
+              <div class="preview-layout">
+                <div class="preview-files">
+                  <div class="preview-title">
+                    <strong>文件列表</strong>
+                    <span id="previewFileCount">0 个文件</span>
+                  </div>
+                  <div id="previewFileList" class="preview-file-list"></div>
+                </div>
+                <div class="preview-content">
+                  <div class="preview-title">
+                    <strong id="previewFileName">最新文件</strong>
+                    <span id="previewFileStatus"></span>
+                  </div>
+                  <pre id="previewFileContent">选择一个来源后显示最新 Markdown 内容。</pre>
+                </div>
+              </div>
+            </section>
+
             <div class="rules-head">
               <div>
                 <p class="kicker">Rules</p>
@@ -172,6 +198,6 @@
       </section>
     </div>
 
-    <script src="/app.js?v=11"></script>
+    <script src="/app.js?v=12"></script>
   </body>
 </html>

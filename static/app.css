@@ -508,6 +508,85 @@ canvas {
   margin-bottom: 22px;
 }
 
+.source-preview {
+  margin-bottom: 24px;
+}
+
+.preview-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 32%) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.preview-files,
+.preview-content {
+  min-height: 320px;
+  border: 1px solid rgba(210, 210, 215, 0.84);
+  border-radius: 8px;
+  background: #fbfbfd;
+  overflow: hidden;
+}
+
+.preview-title {
+  min-height: 44px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(210, 210, 215, 0.84);
+}
+
+.preview-title span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.preview-file-list {
+  max-height: 360px;
+  overflow: auto;
+  padding: 8px;
+}
+
+.preview-file {
+  width: 100%;
+  min-height: 58px;
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  padding: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  box-shadow: none;
+  text-align: left;
+}
+
+.preview-file:hover,
+.preview-file.active {
+  border-color: rgba(0, 113, 227, 0.32);
+  background: #fff;
+}
+
+.preview-file span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+#previewFileContent {
+  height: 360px;
+  margin: 0;
+  padding: 14px;
+  overflow: auto;
+  color: #1d1d1f;
+  background: #fff;
+  font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .wide {
   grid-column: 1 / -1;
 }
@@ -544,6 +623,19 @@ canvas {
   grid-column: 1 / 5;
 }
 
+.rule-test {
+  grid-column: 1 / 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rule-test-result {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .remove-rule {
   align-self: end;
 }
@@ -557,6 +649,10 @@ canvas {
 
 .error-text {
   color: var(--danger);
+}
+
+.success-text {
+  color: var(--accent-dark);
 }
 
 @media (max-width: 720px) {
@@ -608,12 +704,14 @@ canvas {
   .password-panel,
   .password-form,
   .form-grid,
+  .preview-layout,
   .rule-row {
     width: 100%;
     grid-template-columns: 1fr;
   }
 
-  .rule-row .wide {
+  .rule-row .wide,
+  .rule-test {
     grid-column: auto;
   }
 }

@@ -5,6 +5,8 @@ const state = {
   modalRange: "30",
   sources: [],
   selectedSourceId: "",
+  selectedPreviewFile: "",
+  sourcePreview: { files: [], selected: "", content: "" },
 };
 
 const $ = (id) => document.getElementById(id);
@@ -342,6 +344,8 @@ function renderSourceForm(source) {
   $("rulesList").innerHTML = "";
   for (const rule of source.rules || []) addRuleRow(rule);
   $("configMessage").textContent = "";
+  state.selectedPreviewFile = "";
+  loadSourcePreview();
 }
 
 function addRuleRow(rule = {}) {
@@ -388,10 +392,94 @@ function addRuleRow(rule = {}) {
       <span>正则表达式</span>
       <input data-field="pattern" value="${escapeHtml(rule.pattern || "")}" placeholder="门口触发次数[:：]\\s*(\\d+)" required />
     </label>
+    <div class="rule-test">
+      <button class="ghost test-rule" type="button">测试</button>
+      <span class="rule-test-result">用当前预览文件测试</span>
+    </div>
     <button class="ghost remove-rule" type="button">删除</button>
   `;
   row.querySelector(".remove-rule").addEventListener("click", () => row.remove());
+  row.querySelector(".test-rule").addEventListener("click", () => testRuleRow(row));
   $("rulesList").appendChild(row);
+}
+
+function sourcePreviewPayload(fileName = state.selectedPreviewFile) {
+  return {
+    output_dir: $("sourceDir").value.trim(),
+    file_glob: $("sourceGlob").value.trim() || "*.md",
+    file_name: fileName || "",
+  };
+}
+
+function renderSourcePreview(preview) {
+  state.sourcePreview = preview;
+  state.selectedPreviewFile = preview.selected || "";
+  $("previewFileCount").textContent = `${preview.files.length} 个文件`;
+  $("previewFileName").textContent = preview.selected || "没有文件";
+  $("previewFileStatus").textContent = preview.truncated ? "内容已截断" : "";
+  $("previewFileContent").textContent = preview.content || "当前目录没有匹配的 Markdown 文件。";
+  const list = $("previewFileList");
+  list.innerHTML = "";
+  for (const file of preview.files) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `preview-file ${file.name === preview.selected ? "active" : ""}`;
+    button.innerHTML = `
+      <strong>${escapeHtml(file.name)}</strong>
+      <span>${formatTime(file.recorded_at)} · ${Math.ceil(Number(file.size || 0) / 1024)} KB</span>
+    `;
+    button.addEventListener("click", () => {
+      state.selectedPreviewFile = file.name;
+      loadSourcePreview(file.name);
+    });
+    list.appendChild(button);
+  }
+}
+
+async function loadSourcePreview(fileName = "") {
+  $("previewFileStatus").textContent = "加载中...";
+  try {
+    const preview = await api("/api/source-preview", {
+      method: "POST",
+      body: JSON.stringify(sourcePreviewPayload(fileName)),
+    });
+    renderSourcePreview(preview);
+  } catch (error) {
+    state.sourcePreview = { files: [], selected: "", content: "" };
+    $("previewFileCount").textContent = "0 个文件";
+    $("previewFileName").textContent = "预览失败";
+    $("previewFileStatus").textContent = "";
+    $("previewFileContent").textContent = error.message;
+    $("previewFileList").innerHTML = "";
+  }
+}
+
+async function testRuleRow(row) {
+  const value = (field) => row.querySelector(`[data-field="${field}"]`);
+  const result = row.querySelector(".rule-test-result");
+  result.classList.remove("error-text", "success-text");
+  result.textContent = "测试中...";
+  try {
+    const data = await api("/api/test-rule", {
+      method: "POST",
+      body: JSON.stringify({
+        pattern: value("pattern").value.trim(),
+        group_index: Number(value("group_index").value || 1),
+        value_scale: Number(value("value_scale").value || 1),
+        content: $("previewFileContent").textContent,
+      }),
+    });
+    if (!data.matched) {
+      result.textContent = "未匹配到内容";
+      result.classList.add("error-text");
+      return;
+    }
+    result.textContent = `匹配 ${data.raw}，入库值 ${formatNumber(data.value)}`;
+    result.classList.add("success-text");
+  } catch (error) {
+    result.textContent = error.message;
+    result.classList.add("error-text");
+  }
 }
 
 function collectSourceForm() {
@@ -528,6 +616,15 @@ async function boot() {
     renderSourceForm(newSource());
   });
   $("addRuleButton").addEventListener("click", () => addRuleRow());
+  $("refreshPreviewButton").addEventListener("click", () => loadSourcePreview());
+  $("sourceDir").addEventListener("change", () => {
+    state.selectedPreviewFile = "";
+    loadSourcePreview();
+  });
+  $("sourceGlob").addEventListener("change", () => {
+    state.selectedPreviewFile = "";
+    loadSourcePreview();
+  });
   $("sourceForm").addEventListener("submit", saveSource);
   $("passwordForm").addEventListener("submit", savePassword);
   $("refreshMetricsButton").addEventListener("click", refreshMetrics);

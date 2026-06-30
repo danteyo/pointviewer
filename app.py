@@ -632,6 +632,61 @@ def scan_cron_outputs(
     return summary
 
 
+def source_file_preview(data: dict[str, object]) -> dict[str, object]:
+    output_dir = Path(str(data.get("output_dir") or "")).expanduser()
+    file_glob = str(data.get("file_glob") or "*.md").strip() or "*.md"
+    requested_name = str(data.get("file_name") or "").strip()
+    if not output_dir:
+        raise ValueError("output_dir is required")
+    files = sorted(output_dir.glob(file_glob), key=cron_file_recorded_at, reverse=True)
+    selected = None
+    if requested_name:
+        for path in files:
+            if path.name == requested_name:
+                selected = path
+                break
+    if selected is None and files:
+        selected = files[0]
+    content = ""
+    if selected:
+        content = selected.read_text(encoding="utf-8", errors="replace")
+    return {
+        "files": [
+            {
+                "name": path.name,
+                "recorded_at": cron_file_recorded_at(path),
+                "size": path.stat().st_size,
+            }
+            for path in files[:100]
+        ],
+        "selected": selected.name if selected else "",
+        "content": content[:50000],
+        "truncated": len(content) > 50000,
+    }
+
+
+def test_extract_rule(data: dict[str, object]) -> dict[str, object]:
+    pattern = str(data.get("pattern") or "").strip()
+    content = str(data.get("content") or "")
+    group_index = int(data.get("group_index") or 1)
+    value_scale = float(data.get("value_scale") or 1)
+    if not pattern:
+        raise ValueError("pattern is required")
+    compiled = re.compile(pattern, re.MULTILINE | re.IGNORECASE)
+    match = compiled.search(content)
+    if not match:
+        return {"matched": False}
+    raw = matched_value(match, group_index)
+    value = parse_number(raw) * value_scale
+    return {
+        "matched": True,
+        "raw": raw,
+        "value": value,
+        "match": match.group(0),
+        "groups": list(match.groups()),
+    }
+
+
 class HermesHandler(SimpleHTTPRequestHandler):
     server_version = "HermesDashboard/1.0"
 
@@ -784,6 +839,22 @@ class HermesHandler(SimpleHTTPRequestHandler):
                     source_id=str(options.get("source_id") or ""),
                 )
                 self.send_json(HTTPStatus.OK, result)
+                return
+            if parsed.path == "/api/source-preview":
+                if not self.require_session():
+                    return
+                data = self.read_json()
+                if not isinstance(data, dict):
+                    raise ValueError("preview payload must be an object")
+                self.send_json(HTTPStatus.OK, source_file_preview(data))
+                return
+            if parsed.path == "/api/test-rule":
+                if not self.require_session():
+                    return
+                data = self.read_json()
+                if not isinstance(data, dict):
+                    raise ValueError("test payload must be an object")
+                self.send_json(HTTPStatus.OK, test_extract_rule(data))
                 return
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
         except PermissionError as exc:
