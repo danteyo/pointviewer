@@ -131,6 +131,7 @@ function renderMetricGrid(grid, metrics, label) {
     card.type = "button";
     card.className = `metric-card ${metric.key === state.selectedKey ? "active" : ""}`;
     card.dataset.category = metric.category;
+    card.dataset.pinned = metric.pinned ? "true" : "false";
     card.innerHTML = `
       <p class="name">${escapeHtml(metric.name)}</p>
       <p class="value">
