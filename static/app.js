@@ -344,13 +344,13 @@ function renderSourceForm(source) {
   $("sourceSchedule").value = source.schedule || "";
   $("sourceEnabled").checked = Boolean(source.enabled);
   $("rulesList").innerHTML = "";
-  for (const rule of source.rules || []) addRuleRow(rule);
+  for (const rule of [...(source.rules || [])].reverse()) addRuleRow(rule, { prepend: false });
   $("configMessage").textContent = "";
   state.selectedPreviewFile = "";
   loadSourcePreview();
 }
 
-function addRuleRow(rule = {}) {
+function addRuleRow(rule = {}, options = {}) {
   const row = document.createElement("div");
   row.className = "rule-row";
   row.innerHTML = `
@@ -402,7 +402,11 @@ function addRuleRow(rule = {}) {
   `;
   row.querySelector(".remove-rule").addEventListener("click", () => row.remove());
   row.querySelector(".test-rule").addEventListener("click", () => testRuleRow(row));
-  $("rulesList").appendChild(row);
+  if (options.prepend) {
+    $("rulesList").prepend(row);
+  } else {
+    $("rulesList").appendChild(row);
+  }
 }
 
 function sourcePreviewPayload(fileName = state.selectedPreviewFile) {
@@ -620,7 +624,7 @@ async function boot() {
     renderSources();
     renderSourceForm(newSource());
   });
-  $("addRuleButton").addEventListener("click", () => addRuleRow());
+  $("addRuleButton").addEventListener("click", () => addRuleRow({}, { prepend: true }));
   $("refreshPreviewButton").addEventListener("click", () => loadSourcePreview());
   $("sourceDir").addEventListener("change", () => {
     state.selectedPreviewFile = "";

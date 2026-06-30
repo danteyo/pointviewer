@@ -651,7 +651,11 @@ canvas {
 
 .config-message {
   min-height: 22px;
-  margin: 14px 0 0;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 113, 227, 0.16);
+  border-radius: 10px;
+  background: rgba(0, 113, 227, 0.06);
   color: var(--accent-dark);
   font-weight: 700;
 }
