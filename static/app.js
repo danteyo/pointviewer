@@ -2,7 +2,7 @@ const state = {
   metrics: [],
   selectedKey: "",
   rangeDays: 7,
-  modalRangeDays: 7,
+  modalRange: "30",
   sources: [],
   selectedSourceId: "",
 };
@@ -33,6 +33,27 @@ function formatTime(seconds) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(seconds * 1000));
+}
+
+function metricRangeKey(metricKey) {
+  return `hermes.historyRange.${metricKey}`;
+}
+
+function getMetricRange(metricKey) {
+  const saved = localStorage.getItem(metricRangeKey(metricKey));
+  return ["30", "180", "all"].includes(saved) ? saved : "30";
+}
+
+function setMetricRange(metricKey, range) {
+  if (metricKey && ["30", "180", "all"].includes(range)) {
+    localStorage.setItem(metricRangeKey(metricKey), range);
+  }
+}
+
+function setActiveRange(range) {
+  document.querySelectorAll("[data-modal-range]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.modalRange === range);
+  });
 }
 
 async function api(path, options = {}) {
@@ -156,10 +177,8 @@ async function refreshMetrics() {
 
 async function openHistory(key) {
   state.selectedKey = key;
-  state.modalRangeDays = 7;
-  document.querySelectorAll("[data-modal-range]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.modalRange === "7");
-  });
+  state.modalRange = getMetricRange(key);
+  setActiveRange(state.modalRange);
   renderCards();
   $("historyModal").hidden = false;
   await loadHistory();
@@ -175,7 +194,7 @@ async function loadHistory() {
     return;
   }
   const end = Math.floor(Date.now() / 1000);
-  const start = end - state.modalRangeDays * 86400;
+  const start = state.modalRange === "all" ? 0 : end - Number(state.modalRange) * 86400;
   const data = await api(`/api/history?key=${encodeURIComponent(state.selectedKey)}&start=${start}&end=${end}`);
   $("modalChartTitle").textContent = data.metric.name;
   drawChart(data.metric, data.points);
@@ -523,9 +542,9 @@ async function boot() {
   });
   document.querySelectorAll("[data-modal-range]").forEach((button) => {
     button.addEventListener("click", async () => {
-      document.querySelectorAll("[data-modal-range]").forEach((item) => item.classList.remove("active"));
-      button.classList.add("active");
-      state.modalRangeDays = Number(button.dataset.modalRange);
+      state.modalRange = button.dataset.modalRange;
+      setMetricRange(state.selectedKey, state.modalRange);
+      setActiveRange(state.modalRange);
       await loadHistory();
     });
   });

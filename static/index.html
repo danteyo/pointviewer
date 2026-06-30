@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes Dashboard</title>
-    <link rel="stylesheet" href="/app.css?v=7" />
+    <link rel="stylesheet" href="/app.css?v=8" />
   </head>
   <body>
     <main class="shell">
@@ -160,9 +160,9 @@
           </div>
           <div class="controls">
             <div class="range-tabs" role="group" aria-label="时间范围">
-              <button data-modal-range="1">24h</button>
-              <button data-modal-range="7" class="active">7d</button>
-              <button data-modal-range="30">30d</button>
+              <button data-modal-range="30" class="active">30天</button>
+              <button data-modal-range="180">半年</button>
+              <button data-modal-range="all">所有</button>
             </div>
             <button id="closeHistoryButton" class="ghost" type="button">关闭</button>
           </div>
@@ -172,6 +172,6 @@
       </section>
     </div>
 
-    <script src="/app.js?v=7"></script>
+    <script src="/app.js?v=8"></script>
   </body>
 </html>
