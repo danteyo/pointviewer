@@ -129,6 +129,31 @@ async function loadMetrics() {
   renderCards();
 }
 
+async function refreshMetrics() {
+  const button = $("refreshMetricsButton");
+  const status = $("metricsRefreshStatus");
+  button.disabled = true;
+  button.textContent = "刷新中...";
+  status.textContent = "正在扫描已配置规则";
+  status.classList.remove("error-text");
+  try {
+    const result = await api("/api/cron-scan", {
+      method: "POST",
+      body: JSON.stringify({ limit_per_source: 100 }),
+    });
+    await loadMetrics();
+    const errorText = result.errors?.length ? `，${result.errors.length} 个错误：${result.errors[0].error}` : "";
+    status.textContent = `已刷新：扫描 ${result.files} 个文件，新增 ${result.points} 个点${errorText}`;
+    status.classList.toggle("error-text", Boolean(result.errors?.length));
+  } catch (error) {
+    status.textContent = error.message;
+    status.classList.add("error-text");
+  } finally {
+    button.disabled = false;
+    button.textContent = "刷新";
+  }
+}
+
 async function openHistory(key) {
   state.selectedKey = key;
   state.modalRangeDays = 7;
@@ -485,6 +510,7 @@ async function boot() {
   $("addRuleButton").addEventListener("click", () => addRuleRow());
   $("sourceForm").addEventListener("submit", saveSource);
   $("passwordForm").addEventListener("submit", savePassword);
+  $("refreshMetricsButton").addEventListener("click", refreshMetrics);
   $("scanButton").addEventListener("click", scanNow);
   $("deleteSourceButton").addEventListener("click", deleteCurrentSource);
 

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes Dashboard</title>
-    <link rel="stylesheet" href="/app.css?v=6" />
+    <link rel="stylesheet" href="/app.css?v=7" />
   </head>
   <body>
     <main class="shell">
@@ -40,6 +40,10 @@
         </header>
 
         <section id="metricsPanel">
+          <div class="metrics-toolbar">
+            <p id="metricsRefreshStatus" class="refresh-status" role="status"></p>
+            <button id="refreshMetricsButton" class="ghost" type="button">刷新</button>
+          </div>
           <section id="pinnedSection" class="metric-section" hidden>
             <div class="metric-section-head">
               <div>
@@ -168,6 +172,6 @@
       </section>
     </div>
 
-    <script src="/app.js?v=6"></script>
+    <script src="/app.js?v=7"></script>
   </body>
 </html>

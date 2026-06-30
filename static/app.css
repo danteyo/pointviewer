@@ -141,6 +141,12 @@ button:active {
   transform: translateY(1px);
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+  transform: none;
+}
+
 .ghost {
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid var(--line);
@@ -215,6 +221,23 @@ button:active {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 16px;
+}
+
+.metrics-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin: -8px 0 18px;
+}
+
+.refresh-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: right;
 }
 
 .top-grid {
@@ -544,10 +567,19 @@ canvas {
   .trend-head,
   .controls,
   .top-actions,
+  .metrics-toolbar,
   .section-head,
   .rules-head {
     display: grid;
     width: 100%;
+  }
+
+  .metrics-toolbar {
+    justify-content: stretch;
+  }
+
+  .refresh-status {
+    text-align: left;
   }
 
   h1 {
