@@ -53,9 +53,12 @@ function show(view) {
 function setPanel(panel) {
   $("metricsPanel").hidden = panel !== "metrics";
   $("configPanel").hidden = panel !== "config";
+  $("passwordPanel").hidden = panel !== "password";
   $("metricsTab").classList.toggle("active", panel === "metrics");
   $("configTab").classList.toggle("active", panel === "config");
+  $("passwordTab").classList.toggle("active", panel === "password");
   if (panel === "config") loadConfig();
+  if (panel === "password") resetPasswordForm();
 }
 
 function renderCards() {
@@ -370,6 +373,41 @@ async function scanNow() {
   await loadMetrics();
 }
 
+function resetPasswordForm() {
+  $("passwordForm").reset();
+  $("passwordMessage").textContent = "";
+  $("passwordMessage").classList.remove("error-text");
+}
+
+async function savePassword(event) {
+  event.preventDefault();
+  const message = $("passwordMessage");
+  message.textContent = "";
+  message.classList.remove("error-text");
+  const currentPassword = $("currentPassword").value;
+  const newPassword = $("newPassword").value;
+  const confirmPassword = $("confirmPassword").value;
+  if (newPassword !== confirmPassword) {
+    message.textContent = "两次输入的新密码不一致";
+    message.classList.add("error-text");
+    return;
+  }
+  try {
+    await api("/api/change-password", {
+      method: "POST",
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+    $("passwordForm").reset();
+    message.textContent = "密码已更新";
+  } catch (error) {
+    message.textContent = error.message;
+    message.classList.add("error-text");
+  }
+}
+
 async function boot() {
   $("loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -394,6 +432,7 @@ async function boot() {
 
   $("metricsTab").addEventListener("click", () => setPanel("metrics"));
   $("configTab").addEventListener("click", () => setPanel("config"));
+  $("passwordTab").addEventListener("click", () => setPanel("password"));
   $("newSourceButton").addEventListener("click", () => {
     state.selectedSourceId = "";
     renderSources();
@@ -401,6 +440,7 @@ async function boot() {
   });
   $("addRuleButton").addEventListener("click", () => addRuleRow());
   $("sourceForm").addEventListener("submit", saveSource);
+  $("passwordForm").addEventListener("submit", savePassword);
   $("scanButton").addEventListener("click", scanNow);
   $("deleteSourceButton").addEventListener("click", deleteCurrentSource);
 

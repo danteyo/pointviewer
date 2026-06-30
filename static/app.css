@@ -169,7 +169,7 @@ button:hover {
 
 .view-tabs {
   display: grid;
-  grid-template-columns: repeat(2, 64px);
+  grid-template-columns: repeat(3, 64px);
   gap: 4px;
   padding: 4px;
   border: 1px solid var(--line);
@@ -314,6 +314,21 @@ canvas {
   align-items: start;
 }
 
+.password-panel {
+  display: grid;
+  justify-content: start;
+  width: 100%;
+}
+
+.password-form {
+  width: min(680px, 100%);
+  padding: 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
 .source-list,
 .source-form {
   background: var(--panel);
@@ -432,6 +447,10 @@ canvas {
   font-weight: 700;
 }
 
+.error-text {
+  color: var(--danger);
+}
+
 @media (max-width: 720px) {
   .shell {
     width: min(100% - 20px, 1180px);
@@ -460,8 +479,11 @@ canvas {
   }
 
   .config-panel,
+  .password-panel,
+  .password-form,
   .form-grid,
   .rule-row {
+    width: 100%;
     grid-template-columns: 1fr;
   }
 

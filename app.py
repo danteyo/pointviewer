@@ -194,6 +194,12 @@ def init_db() -> None:
                 recorded_at INTEGER NOT NULL,
                 PRIMARY KEY (rule_id, file_path, file_mtime)
             );
+
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
             """
         )
         count = conn.execute("SELECT COUNT(*) FROM cron_sources").fetchone()[0]
@@ -214,6 +220,38 @@ def init_db() -> None:
                         now(),
                     ),
                 )
+
+
+def get_setting(key: str) -> str | None:
+    with connect() as conn:
+        row = conn.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
+    return str(row["value"]) if row else None
+
+
+def set_setting(key: str, value: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO app_settings(key, value, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = excluded.updated_at
+            """,
+            (key, value, now()),
+        )
+
+
+def get_password_hash() -> str:
+    return get_setting("password_hash") or env_required("HERMES_PASSWORD_HASH")
+
+
+def change_password(current_password: str, new_password: str) -> None:
+    if len(new_password) < 8:
+        raise ValueError("new password must be at least 8 characters")
+    if not verify_password(current_password, get_password_hash()):
+        raise PermissionError("current password incorrect")
+    set_setting("password_hash", hash_password(new_password))
 
 
 def latest_metrics() -> list[dict[str, object]]:
@@ -538,7 +576,7 @@ class HermesHandler(SimpleHTTPRequestHandler):
             if parsed.path == "/api/login":
                 data = self.read_json()
                 password = str(data.get("password", "")) if isinstance(data, dict) else ""
-                if verify_password(password, env_required("HERMES_PASSWORD_HASH")):
+                if verify_password(password, get_password_hash()):
                     token = make_session(env_required("HERMES_SECRET_KEY"))
                     self.send_response(HTTPStatus.OK)
                     self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -560,6 +598,15 @@ class HermesHandler(SimpleHTTPRequestHandler):
                 )
                 self.end_headers()
                 self.wfile.write(json_bytes({"ok": True}))
+                return
+            if parsed.path == "/api/change-password":
+                if not self.require_session():
+                    return
+                data = self.read_json()
+                if not isinstance(data, dict):
+                    raise ValueError("password payload must be an object")
+                change_password(str(data.get("current_password") or ""), str(data.get("new_password") or ""))
+                self.send_json(HTTPStatus.OK, {"ok": True})
                 return
             if parsed.path == "/api/ingest":
                 if not self.require_ingest_token():
@@ -599,6 +646,8 @@ class HermesHandler(SimpleHTTPRequestHandler):
                 self.send_json(HTTPStatus.OK, result)
                 return
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+        except PermissionError as exc:
+            self.send_json(HTTPStatus.FORBIDDEN, {"error": str(exc)})
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
 

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes Dashboard</title>
-    <link rel="stylesheet" href="/app.css?v=3" />
+    <link rel="stylesheet" href="/app.css?v=4" />
   </head>
   <body>
     <main class="shell">
@@ -33,6 +33,7 @@
             <div class="view-tabs" role="group" aria-label="页面">
               <button id="metricsTab" class="active" type="button">指标</button>
               <button id="configTab" type="button">配置</button>
+              <button id="passwordTab" type="button">密码</button>
             </div>
             <button id="logoutButton" class="ghost" type="button">退出</button>
           </div>
@@ -124,8 +125,37 @@
             <p id="configMessage" class="config-message" role="status"></p>
           </form>
         </section>
+
+        <section id="passwordPanel" class="password-panel" hidden>
+          <form id="passwordForm" class="password-form">
+            <div class="section-head">
+              <div>
+                <p class="kicker">Security</p>
+                <h2>修改登录密码</h2>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label class="wide">
+                <span>当前密码</span>
+                <input id="currentPassword" type="password" autocomplete="current-password" required />
+              </label>
+              <label>
+                <span>新密码</span>
+                <input id="newPassword" type="password" autocomplete="new-password" minlength="8" required />
+              </label>
+              <label>
+                <span>确认新密码</span>
+                <input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit">保存新密码</button>
+            </div>
+            <p id="passwordMessage" class="config-message" role="status"></p>
+          </form>
+        </section>
       </section>
     </main>
-    <script src="/app.js?v=3"></script>
+    <script src="/app.js?v=4"></script>
   </body>
 </html>

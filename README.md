@@ -19,6 +19,7 @@ python3 scripts/hash_password.py
 ```
 
 把输出写入 `.env` 的 `HERMES_PASSWORD_HASH`，并修改 `HERMES_SECRET_KEY` 与 `HERMES_INGEST_TOKEN`。
+首次登录后可以在页面右上角「密码」里修改登录密码；修改后的密码哈希会保存在本地 SQLite 数据库，优先级高于 `.env` 里的初始密码。
 
 ```bash
 set -a
