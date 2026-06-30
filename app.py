@@ -514,10 +514,41 @@ def cron_file_recorded_at(path: Path) -> int:
     return int(path.stat().st_mtime)
 
 
-def scan_cron_outputs(limit_per_source: int = 0, rescan: bool = False) -> dict[str, object]:
-    summary: dict[str, object] = {"sources": 0, "files": 0, "points": 0, "errors": []}
+def escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def clear_source_points(conn: sqlite3.Connection, source: sqlite3.Row, rules: list[sqlite3.Row]) -> int:
+    deleted = 0
+    note_prefixes = (f"{source['id']}: ", f"{source['name']}: ")
+    for rule in rules:
+        for note_prefix in note_prefixes:
+            deleted += conn.execute(
+                """
+                DELETE FROM metric_points
+                WHERE metric_key = ? AND note LIKE ? ESCAPE '\\'
+                """,
+                (rule["metric_key"], f"{escape_like(note_prefix)}%"),
+            ).rowcount
+        conn.execute("DELETE FROM cron_rule_runs WHERE rule_id = ?", (rule["id"],))
+    return deleted
+
+
+def scan_cron_outputs(
+    limit_per_source: int = 0,
+    rescan: bool = False,
+    sync: bool = False,
+    source_id: str = "",
+) -> dict[str, object]:
+    summary: dict[str, object] = {"sources": 0, "files": 0, "points": 0, "deleted": 0, "errors": []}
     with connect() as conn:
-        sources = conn.execute("SELECT * FROM cron_sources WHERE enabled = 1 ORDER BY name").fetchall()
+        source_sql = "SELECT * FROM cron_sources WHERE enabled = 1"
+        params: tuple[object, ...] = ()
+        if source_id:
+            source_sql += " AND id = ?"
+            params = (source_id,)
+        source_sql += " ORDER BY name"
+        sources = conn.execute(source_sql, params).fetchall()
         rules = conn.execute("SELECT * FROM cron_rules WHERE enabled = 1 ORDER BY sort_order, name").fetchall()
         rules_by_source: dict[str, list[sqlite3.Row]] = {}
         for rule in rules:
@@ -531,6 +562,9 @@ def scan_cron_outputs(limit_per_source: int = 0, rescan: bool = False) -> dict[s
         output_dir = Path(str(source["output_dir"])).expanduser()
         files = sorted(output_dir.glob(str(source["file_glob"])), key=cron_file_recorded_at, reverse=True)
         selected_files = files if limit_per_source <= 0 else files[:limit_per_source]
+        if sync:
+            with connect() as conn:
+                summary["deleted"] = int(summary["deleted"]) + clear_source_points(conn, source, source_rules)
         for path in selected_files:
             try:
                 content = path.read_text(encoding="utf-8")
@@ -539,7 +573,7 @@ def scan_cron_outputs(limit_per_source: int = 0, rescan: bool = False) -> dict[s
                 summary["files"] = int(summary["files"]) + 1
                 for rule in source_rules:
                     run_exists = False
-                    if not rescan:
+                    if not rescan and not sync:
                         with connect() as conn:
                             run_exists = bool(
                                 conn.execute(
@@ -567,7 +601,7 @@ def scan_cron_outputs(limit_per_source: int = 0, rescan: bool = False) -> dict[s
                                 "sort_order": rule["sort_order"],
                                 "value": value,
                                 "recorded_at": recorded_at,
-                                "note": f"{source['name']}: {path.name}",
+                                "note": f"{source['id']}: {path.name}",
                             }
                         )
                         with connect() as conn:
@@ -740,6 +774,8 @@ class HermesHandler(SimpleHTTPRequestHandler):
                 result = scan_cron_outputs(
                     limit_per_source=int(options.get("limit_per_source") or 0),
                     rescan=bool(options.get("rescan") or False),
+                    sync=bool(options.get("sync") or False),
+                    source_id=str(options.get("source_id") or ""),
                 )
                 self.send_json(HTTPStatus.OK, result)
                 return

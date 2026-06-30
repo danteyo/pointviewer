@@ -160,7 +160,7 @@ async function refreshMetrics() {
   try {
     const result = await api("/api/cron-scan", {
       method: "POST",
-      body: JSON.stringify({ limit_per_source: 0 }),
+      body: JSON.stringify({ limit_per_source: 1 }),
     });
     await loadMetrics();
     const errorText = result.errors?.length ? `，${result.errors.length} 个错误：${result.errors[0].error}` : "";
@@ -449,14 +449,15 @@ async function deleteCurrentSource() {
 }
 
 async function scanNow() {
-  $("configMessage").textContent = "扫描中...";
+  const source = currentSource();
+  $("configMessage").textContent = "同步中...";
   $("configMessage").classList.remove("error-text");
   const result = await api("/api/cron-scan", {
     method: "POST",
-    body: JSON.stringify({ limit_per_source: 0 }),
+    body: JSON.stringify({ limit_per_source: 0, sync: true, source_id: source?.id || "" }),
   });
   const errorText = result.errors?.length ? `，${result.errors.length} 个错误：${result.errors[0].error}` : "";
-  $("configMessage").textContent = `扫描完成：${result.files} 个文件，新增 ${result.points} 个点${errorText}`;
+  $("configMessage").textContent = `同步完成：${result.files} 个文件，写入 ${result.points} 个点，清理 ${result.deleted || 0} 个旧点${errorText}`;
   $("configMessage").classList.toggle("error-text", Boolean(result.errors?.length));
   await loadMetrics();
 }
