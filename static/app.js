@@ -200,8 +200,8 @@ function drawChart(metric, points) {
   }
 
   const gradient = ctx.createLinearGradient(0, pad.top, 0, height - pad.bottom);
-  gradient.addColorStop(0, "rgba(15,139,141,0.22)");
-  gradient.addColorStop(1, "rgba(15,139,141,0)");
+  gradient.addColorStop(0, "rgba(0,113,227,0.2)");
+  gradient.addColorStop(1, "rgba(0,113,227,0)");
   ctx.beginPath();
   points.forEach((point, index) => {
     const px = x(Number(point.recorded_at));
@@ -222,7 +222,7 @@ function drawChart(metric, points) {
     if (index === 0) ctx.moveTo(px, py);
     else ctx.lineTo(px, py);
   });
-  ctx.strokeStyle = "#0f8b8d";
+  ctx.strokeStyle = "#0071e3";
   ctx.lineWidth = 4;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
