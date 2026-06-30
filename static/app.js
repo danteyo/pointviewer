@@ -2,6 +2,7 @@ const state = {
   metrics: [],
   selectedKey: "",
   rangeDays: 7,
+  modalRangeDays: 7,
   sources: [],
   selectedSourceId: "",
 };
@@ -62,9 +63,47 @@ function setPanel(panel) {
 }
 
 function renderCards() {
-  const grid = $("metricGrid");
-  grid.innerHTML = "";
+  const pinned = state.metrics.filter((metric) => Boolean(metric.pinned)).slice(0, 4);
+  $("pinnedSection").hidden = pinned.length === 0;
+  renderMetricGrid($("pinnedGrid"), pinned, "pinned");
+
+  const groups = new Map();
   for (const metric of state.metrics) {
+    if (metric.pinned) continue;
+    const key = metric.source_id || "other";
+    if (!groups.has(key)) {
+      groups.set(key, {
+        title: metric.source_name || "其他指标",
+        subtitle: metric.source_schedule || metric.category || "",
+        metrics: [],
+      });
+    }
+    groups.get(key).metrics.push(metric);
+  }
+
+  const container = $("metricGroups");
+  container.innerHTML = "";
+  for (const group of groups.values()) {
+    const section = document.createElement("section");
+    section.className = "metric-section";
+    section.innerHTML = `
+      <div class="metric-section-head">
+        <div>
+          <p class="kicker">Source</p>
+          <h2>${escapeHtml(group.title)}</h2>
+        </div>
+        <span>${escapeHtml(group.subtitle)}</span>
+      </div>
+      <div class="metric-grid"></div>
+    `;
+    renderMetricGrid(section.querySelector(".metric-grid"), group.metrics, group.title);
+    container.appendChild(section);
+  }
+}
+
+function renderMetricGrid(grid, metrics, label) {
+  grid.innerHTML = "";
+  for (const metric of metrics) {
     const card = document.createElement("button");
     card.type = "button";
     card.className = `metric-card ${metric.key === state.selectedKey ? "active" : ""}`;
@@ -77,21 +116,10 @@ function renderCards() {
       </p>
       <span class="time">${formatTime(metric.recorded_at)}</span>
     `;
-    card.addEventListener("click", () => selectMetric(metric.key));
+    card.setAttribute("aria-label", `${label} ${metric.name} 历史趋势`);
+    card.addEventListener("click", () => openHistory(metric.key));
     grid.appendChild(card);
   }
-}
-
-function renderSelect() {
-  const select = $("metricSelect");
-  select.innerHTML = "";
-  for (const metric of state.metrics) {
-    const option = document.createElement("option");
-    option.value = metric.key;
-    option.textContent = metric.name;
-    select.appendChild(option);
-  }
-  select.value = state.selectedKey;
 }
 
 async function loadMetrics() {
@@ -99,15 +127,21 @@ async function loadMetrics() {
   state.metrics = data.metrics;
   if (!state.selectedKey && state.metrics.length) state.selectedKey = state.metrics[0].key;
   renderCards();
-  renderSelect();
+}
+
+async function openHistory(key) {
+  state.selectedKey = key;
+  state.modalRangeDays = 7;
+  document.querySelectorAll("[data-modal-range]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.modalRange === "7");
+  });
+  renderCards();
+  $("historyModal").hidden = false;
   await loadHistory();
 }
 
-async function selectMetric(key) {
-  state.selectedKey = key;
-  renderCards();
-  renderSelect();
-  await loadHistory();
+function closeHistory() {
+  $("historyModal").hidden = true;
 }
 
 async function loadHistory() {
@@ -116,9 +150,9 @@ async function loadHistory() {
     return;
   }
   const end = Math.floor(Date.now() / 1000);
-  const start = end - state.rangeDays * 86400;
+  const start = end - state.modalRangeDays * 86400;
   const data = await api(`/api/history?key=${encodeURIComponent(state.selectedKey)}&start=${start}&end=${end}`);
-  $("chartTitle").textContent = data.metric.name;
+  $("modalChartTitle").textContent = data.metric.name;
   drawChart(data.metric, data.points);
 }
 
@@ -299,6 +333,10 @@ function addRuleRow(rule = {}) {
       <input data-field="value_scale" type="number" step="0.0001" value="${escapeHtml(rule.value_scale || 1)}" />
     </label>
     <label class="check-row">
+      <input data-field="pinned" type="checkbox" ${rule.pinned ? "checked" : ""} />
+      <span>置顶</span>
+    </label>
+    <label class="check-row">
       <input data-field="enabled" type="checkbox" ${rule.enabled === 0 ? "" : "checked"} />
       <span>启用</span>
     </label>
@@ -323,6 +361,7 @@ function collectSourceForm() {
       sort_order: Number(value("sort_order").value || 100),
       group_index: Number(value("group_index").value || 1),
       value_scale: Number(value("value_scale").value || 1),
+      pinned: value("pinned").checked,
       pattern: value("pattern").value.trim(),
       enabled: value("enabled").checked,
     };
@@ -449,12 +488,18 @@ async function boot() {
   $("scanButton").addEventListener("click", scanNow);
   $("deleteSourceButton").addEventListener("click", deleteCurrentSource);
 
-  $("metricSelect").addEventListener("change", (event) => selectMetric(event.target.value));
-  document.querySelectorAll("[data-range]").forEach((button) => {
+  $("closeHistoryButton").addEventListener("click", closeHistory);
+  $("historyModal").addEventListener("click", (event) => {
+    if (event.target === $("historyModal")) closeHistory();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeHistory();
+  });
+  document.querySelectorAll("[data-modal-range]").forEach((button) => {
     button.addEventListener("click", async () => {
-      document.querySelectorAll("[data-range]").forEach((item) => item.classList.remove("active"));
+      document.querySelectorAll("[data-modal-range]").forEach((item) => item.classList.remove("active"));
       button.classList.add("active");
-      state.rangeDays = Number(button.dataset.range);
+      state.modalRangeDays = Number(button.dataset.modalRange);
       await loadHistory();
     });
   });

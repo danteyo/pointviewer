@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes Dashboard</title>
-    <link rel="stylesheet" href="/app.css?v=4" />
+    <link rel="stylesheet" href="/app.css?v=5" />
   </head>
   <body>
     <main class="shell">
@@ -40,26 +40,16 @@
         </header>
 
         <section id="metricsPanel">
-          <section id="metricGrid" class="metric-grid" aria-live="polite"></section>
-
-          <section class="trend-section">
-            <div class="trend-head">
+          <section id="pinnedSection" class="metric-section" hidden>
+            <div class="metric-section-head">
               <div>
-                <p class="kicker">History</p>
-                <h2 id="chartTitle">历史趋势</h2>
-              </div>
-              <div class="controls">
-                <select id="metricSelect" aria-label="选择指标"></select>
-                <div class="range-tabs" role="group" aria-label="时间范围">
-                  <button data-range="1">24h</button>
-                  <button data-range="7" class="active">7d</button>
-                  <button data-range="30">30d</button>
-                </div>
+                <p class="kicker">Pinned</p>
+                <h2>置顶指标</h2>
               </div>
             </div>
-            <canvas id="trendCanvas" width="1200" height="460"></canvas>
-            <p id="emptyState" class="empty-state" hidden>暂无历史数据</p>
+            <div id="pinnedGrid" class="metric-grid top-grid" aria-live="polite"></div>
           </section>
+          <section id="metricGroups" class="metric-groups" aria-live="polite"></section>
         </section>
 
         <section id="configPanel" class="config-panel" hidden>
@@ -156,6 +146,28 @@
         </section>
       </section>
     </main>
-    <script src="/app.js?v=4"></script>
+
+    <div id="historyModal" class="modal-backdrop" hidden>
+      <section class="history-modal" role="dialog" aria-modal="true" aria-labelledby="modalChartTitle">
+        <div class="trend-head">
+          <div>
+            <p class="kicker">History</p>
+            <h2 id="modalChartTitle">历史趋势</h2>
+          </div>
+          <div class="controls">
+            <div class="range-tabs" role="group" aria-label="时间范围">
+              <button data-modal-range="1">24h</button>
+              <button data-modal-range="7" class="active">7d</button>
+              <button data-modal-range="30">30d</button>
+            </div>
+            <button id="closeHistoryButton" class="ghost" type="button">关闭</button>
+          </div>
+        </div>
+        <canvas id="trendCanvas" width="1200" height="460"></canvas>
+        <p id="emptyState" class="empty-state" hidden>暂无历史数据</p>
+      </section>
+    </div>
+
+    <script src="/app.js?v=5"></script>
   </body>
 </html>

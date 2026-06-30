@@ -193,7 +193,36 @@ button:hover {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
-  margin-bottom: 18px;
+}
+
+.top-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metric-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.metric-section {
+  margin-bottom: 16px;
+}
+
+.metric-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.metric-section-head h2 {
+  margin: 0;
+}
+
+.metric-section-head span {
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .metric-card {
@@ -305,6 +334,28 @@ canvas {
   inset: 54% 0 auto;
   text-align: center;
   color: var(--muted);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(23, 32, 38, 0.32);
+}
+
+.history-modal {
+  position: relative;
+  width: min(1040px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 24px 80px rgba(23, 32, 38, 0.26);
 }
 
 .config-panel {
@@ -472,6 +523,15 @@ canvas {
 
   .metric-grid {
     grid-template-columns: 1fr;
+  }
+
+  .top-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-section-head {
+    display: grid;
+    align-items: start;
   }
 
   .range-tabs {

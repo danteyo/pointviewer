@@ -183,6 +183,7 @@ def init_db() -> None:
                 pattern TEXT NOT NULL,
                 group_index INTEGER NOT NULL DEFAULT 1,
                 value_scale REAL NOT NULL DEFAULT 1,
+                pinned INTEGER NOT NULL DEFAULT 0,
                 enabled INTEGER NOT NULL DEFAULT 1,
                 updated_at INTEGER NOT NULL
             );
@@ -202,6 +203,9 @@ def init_db() -> None:
             );
             """
         )
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(cron_rules)").fetchall()}
+        if "pinned" not in columns:
+            conn.execute("ALTER TABLE cron_rules ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
         count = conn.execute("SELECT COUNT(*) FROM cron_sources").fetchone()[0]
         if count == 0:
             for source in DEFAULT_CRON_SOURCES:
@@ -259,7 +263,11 @@ def latest_metrics() -> list[dict[str, object]]:
         rows = conn.execute(
             """
             SELECT m.key, m.name, m.unit, m.category, m.updated_at,
-                   p.value, p.recorded_at
+                   p.value, p.recorded_at,
+                   COALESCE(cr.pinned, 0) AS pinned,
+                   cr.source_id,
+                   cs.name AS source_name,
+                   cs.schedule AS source_schedule
             FROM metrics m
             LEFT JOIN metric_points p ON p.id = (
                 SELECT id FROM metric_points
@@ -267,7 +275,18 @@ def latest_metrics() -> list[dict[str, object]]:
                 ORDER BY recorded_at DESC, id DESC
                 LIMIT 1
             )
-            ORDER BY m.sort_order, m.category, m.name
+            LEFT JOIN cron_rules cr ON cr.id = (
+                SELECT id FROM cron_rules
+                WHERE metric_key = m.key
+                ORDER BY enabled DESC, pinned DESC, sort_order, id
+                LIMIT 1
+            )
+            LEFT JOIN cron_sources cs ON cs.id = cr.source_id
+            ORDER BY COALESCE(cr.pinned, 0) DESC,
+                     COALESCE(cs.name, '其他'),
+                     m.sort_order,
+                     m.category,
+                     m.name
             """
         ).fetchall()
     return [dict(row) for row in rows]
@@ -366,6 +385,26 @@ def save_cron_source(data: dict[str, object]) -> dict[str, object]:
         raise ValueError("rules must be a list")
 
     with connect() as conn:
+        requested_pinned = sum(
+            1
+            for rule in rules
+            if enabled
+            and isinstance(rule, dict)
+            and str(rule.get("metric_key") or "").strip()
+            and str(rule.get("pattern") or "").strip()
+            and rule.get("enabled", True)
+            and rule.get("pinned", False)
+        )
+        existing_pinned = conn.execute(
+            """
+            SELECT COUNT(*) FROM cron_rules
+            WHERE source_id != ? AND enabled = 1 AND pinned = 1
+            """,
+            (source_id,),
+        ).fetchone()[0]
+        if existing_pinned + requested_pinned > 4:
+            raise ValueError("最多只能设置 4 个置顶指标")
+
         conn.execute(
             """
             INSERT INTO cron_sources(id, name, output_dir, file_glob, schedule, enabled, updated_at)
@@ -393,13 +432,14 @@ def save_cron_source(data: dict[str, object]) -> dict[str, object]:
             rule_category = str(rule.get("category") or "cron").strip()
             rule_sort_order = int(rule.get("sort_order") or (100 + index))
             rule_enabled = 1 if rule.get("enabled", True) else 0
+            rule_pinned = 1 if rule.get("pinned", False) else 0
             conn.execute(
                 """
                 INSERT INTO cron_rules(
                     source_id, metric_key, name, unit, category, sort_order, pattern,
-                    group_index, value_scale, enabled, updated_at
+                    group_index, value_scale, pinned, enabled, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     source_id,
@@ -411,6 +451,7 @@ def save_cron_source(data: dict[str, object]) -> dict[str, object]:
                     pattern,
                     int(rule.get("group_index") or 1),
                     float(rule.get("value_scale") or 1),
+                    rule_pinned,
                     rule_enabled,
                     now(),
                 ),
