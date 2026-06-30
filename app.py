@@ -8,10 +8,12 @@ signals with login protection and SQLite-backed history.
 from __future__ import annotations
 
 import base64
+import fnmatch
 import hashlib
 import hmac
 import json
 import os
+import pwd
 import re
 import secrets
 import sqlite3
@@ -520,6 +522,41 @@ def cron_file_recorded_at(path: Path) -> int:
     return int(path.stat().st_mtime)
 
 
+def resolve_output_dir(value: str) -> Path:
+    raw = value.strip()
+    expanded = Path(raw).expanduser()
+    candidates = [expanded]
+    if raw.startswith("~/"):
+        rest = raw[2:]
+        for base in (Path("/home"), Path("/Users")):
+            if not base.exists():
+                continue
+            try:
+                candidates.extend(home / rest for home in sorted(base.iterdir()) if home.is_dir())
+            except OSError:
+                continue
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return expanded
+
+
+def runtime_user() -> str:
+    try:
+        return pwd.getpwuid(os.getuid()).pw_name
+    except Exception:
+        return str(os.getuid())
+
+
+def list_matching_files(output_dir: Path, file_glob: str) -> tuple[list[Path], str]:
+    try:
+        entries = list(output_dir.iterdir())
+    except OSError as exc:
+        return [], str(exc)
+    files = [path for path in entries if path.is_file() and fnmatch.fnmatch(path.name, file_glob)]
+    return sorted(files, key=cron_file_recorded_at, reverse=True), ""
+
+
 def escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
@@ -565,8 +602,11 @@ def scan_cron_outputs(
         if not source_rules:
             continue
         summary["sources"] = int(summary["sources"]) + 1
-        output_dir = Path(str(source["output_dir"])).expanduser()
-        files = sorted(output_dir.glob(str(source["file_glob"])), key=cron_file_recorded_at, reverse=True)
+        output_dir = resolve_output_dir(str(source["output_dir"]))
+        files, list_error = list_matching_files(output_dir, str(source["file_glob"]))
+        if list_error:
+            summary["errors"].append({"source": str(source["name"]), "error": f"cannot read {output_dir}: {list_error}"})
+            continue
         selected_files = files if limit_per_source <= 0 else files[:limit_per_source]
         if sync:
             with connect() as conn:
@@ -633,12 +673,13 @@ def scan_cron_outputs(
 
 
 def source_file_preview(data: dict[str, object]) -> dict[str, object]:
-    output_dir = Path(str(data.get("output_dir") or "")).expanduser()
+    configured_dir = str(data.get("output_dir") or "").strip()
+    output_dir = resolve_output_dir(configured_dir)
     file_glob = str(data.get("file_glob") or "*.md").strip() or "*.md"
     requested_name = str(data.get("file_name") or "").strip()
-    if not output_dir:
+    if not configured_dir:
         raise ValueError("output_dir is required")
-    files = sorted(output_dir.glob(file_glob), key=cron_file_recorded_at, reverse=True)
+    files, list_error = list_matching_files(output_dir, file_glob)
     selected = None
     if requested_name:
         for path in files:
@@ -651,6 +692,17 @@ def source_file_preview(data: dict[str, object]) -> dict[str, object]:
     if selected:
         content = selected.read_text(encoding="utf-8", errors="replace")
     return {
+        "configured_dir": configured_dir,
+        "resolved_dir": str(output_dir),
+        "exists": output_dir.exists(),
+        "is_dir": output_dir.is_dir(),
+        "readable": os.access(output_dir, os.R_OK),
+        "executable": os.access(output_dir, os.X_OK),
+        "list_error": list_error,
+        "runtime_user": runtime_user(),
+        "runtime_home": str(Path.home()),
+        "runtime_cwd": str(Path.cwd()),
+        "file_glob": file_glob,
         "files": [
             {
                 "name": path.name,

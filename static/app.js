@@ -207,7 +207,7 @@ function drawChart(metric, points) {
   const ctx = canvas.getContext("2d");
   const width = canvas.width;
   const height = canvas.height;
-  const pad = { top: 28, right: 28, bottom: 46, left: 72 };
+  const pad = { top: 76, right: 34, bottom: 54, left: 86 };
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
@@ -231,10 +231,11 @@ function drawChart(metric, points) {
   const x = (time) => pad.left + ((time - minTime) / timeSpan) * chartWidth;
   const y = (value) => pad.top + (1 - (value - minValue) / valueSpan) * chartHeight;
 
-  ctx.strokeStyle = "#d8e0e4";
+  ctx.strokeStyle = "#e5e5ea";
   ctx.lineWidth = 1;
-  ctx.fillStyle = "#63717b";
-  ctx.font = "24px system-ui";
+  ctx.fillStyle = "#86868b";
+  ctx.font = "18px system-ui";
+  ctx.textAlign = "right";
   for (let i = 0; i <= 4; i += 1) {
     const gy = pad.top + (chartHeight / 4) * i;
     const value = maxValue - (valueSpan / 4) * i;
@@ -242,8 +243,9 @@ function drawChart(metric, points) {
     ctx.moveTo(pad.left, gy);
     ctx.lineTo(width - pad.right, gy);
     ctx.stroke();
-    ctx.fillText(formatNumber(value), 8, gy + 8);
+    ctx.fillText(formatNumber(value), pad.left - 14, gy + 6);
   }
+  ctx.textAlign = "left";
 
   const gradient = ctx.createLinearGradient(0, pad.top, 0, height - pad.bottom);
   gradient.addColorStop(0, "rgba(0,113,227,0.2)");
@@ -269,18 +271,18 @@ function drawChart(metric, points) {
     else ctx.lineTo(px, py);
   });
   ctx.strokeStyle = "#0071e3";
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 3;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.stroke();
 
   const last = points[points.length - 1];
-  ctx.fillStyle = "#172026";
-  ctx.font = "26px system-ui";
-  ctx.fillText(`${formatNumber(last.value)} ${metric?.unit || ""}`, pad.left, 26);
+  ctx.fillStyle = "#1d1d1f";
+  ctx.font = "600 22px system-ui";
+  ctx.fillText(`${formatNumber(last.value)} ${metric?.unit || ""}`, pad.left, 36);
 
-  ctx.fillStyle = "#63717b";
-  ctx.font = "22px system-ui";
+  ctx.fillStyle = "#86868b";
+  ctx.font = "17px system-ui";
   const startLabel = formatTime(times[0]);
   const endLabel = formatTime(times[times.length - 1]);
   ctx.fillText(startLabel, pad.left, height - 10);
@@ -416,8 +418,11 @@ function renderSourcePreview(preview) {
   state.selectedPreviewFile = preview.selected || "";
   $("previewFileCount").textContent = `${preview.files.length} 个文件`;
   $("previewFileName").textContent = preview.selected || "没有文件";
-  $("previewFileStatus").textContent = preview.truncated ? "内容已截断" : "";
-  $("previewFileContent").textContent = preview.content || "当前目录没有匹配的 Markdown 文件。";
+  $("previewFileStatus").textContent = preview.resolved_dir ? `实际路径：${preview.resolved_dir}` : "";
+  if (preview.truncated) $("previewFileStatus").textContent += " · 内容已截断";
+  $("previewFileContent").textContent =
+    preview.content ||
+    `当前目录没有匹配的 Markdown 文件。\n\n配置路径：${preview.configured_dir || ""}\n实际路径：${preview.resolved_dir || ""}\n文件匹配：${preview.file_glob || "*.md"}\n目录存在：${preview.exists ? "是" : "否"}\n是目录：${preview.is_dir ? "是" : "否"}\n可读取：${preview.readable ? "是" : "否"}\n可进入：${preview.executable ? "是" : "否"}\n列目录错误：${preview.list_error || "无"}\n程序用户：${preview.runtime_user || ""}\n程序 HOME：${preview.runtime_home || ""}\n程序工作目录：${preview.runtime_cwd || ""}`;
   const list = $("previewFileList");
   list.innerHTML = "";
   for (const file of preview.files) {
