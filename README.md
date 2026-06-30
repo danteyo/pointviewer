@@ -27,11 +27,12 @@ python3 scripts/hash_password.py
 set -a
 source .env
 set +a
-python3 scripts/seed_demo.py
 python3 app.py
 ```
 
 打开 `http://127.0.0.1:8080`。
+
+如果只是想本地预览样例卡片，可以额外运行 `python3 scripts/seed_demo.py`；预览完可用 `python3 scripts/clear_demo_data.py` 删除这些样例指标。
 
 ## 写入数据
 

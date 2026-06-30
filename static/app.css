@@ -219,7 +219,7 @@ button:disabled {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -273,6 +273,7 @@ button:disabled {
 
 .metric-card {
   min-height: 148px;
+  width: 100%;
   display: grid;
   align-content: space-between;
   gap: 18px;
@@ -587,11 +588,11 @@ canvas {
   }
 
   .metric-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .top-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .metric-section-head {
@@ -614,5 +615,12 @@ canvas {
 
   .rule-row .wide {
     grid-column: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .metric-grid,
+  .top-grid {
+    grid-template-columns: 1fr;
   }
 }
