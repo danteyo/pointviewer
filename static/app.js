@@ -196,7 +196,7 @@ async function refreshMetrics() {
   try {
     const result = await api("/api/cron-scan", {
       method: "POST",
-      body: JSON.stringify({ limit_per_source: 1 }),
+      body: JSON.stringify({ limit_per_source: 1, rescan: true }),
     });
     await loadMetrics();
     const errorText = result.errors?.length ? `，${result.errors.length} 个错误：${result.errors[0].error}` : "";

@@ -665,6 +665,28 @@ def clear_source_points(conn: sqlite3.Connection, source: sqlite3.Row, rules: li
     return deleted
 
 
+def clear_file_points(conn: sqlite3.Connection, source: sqlite3.Row, rules: list[sqlite3.Row], path: Path) -> int:
+    deleted = 0
+    notes = (f"{source['id']}: {path.name}", f"{source['name']}: {path.name}")
+    for rule in rules:
+        for note in notes:
+            deleted += conn.execute(
+                """
+                DELETE FROM metric_points
+                WHERE metric_key = ? AND note = ?
+                """,
+                (rule["metric_key"], note),
+            ).rowcount
+        conn.execute(
+            """
+            DELETE FROM cron_rule_runs
+            WHERE rule_id = ? AND file_path = ?
+            """,
+            (rule["id"], str(path)),
+        )
+    return deleted
+
+
 def scan_cron_outputs(
     limit_per_source: int = 0,
     rescan: bool = False,
@@ -705,6 +727,9 @@ def scan_cron_outputs(
                 file_mtime = int(path.stat().st_mtime)
                 recorded_at = cron_file_recorded_at(path, content)
                 summary["files"] = int(summary["files"]) + 1
+                if rescan and not sync:
+                    with connect() as conn:
+                        summary["deleted"] = int(summary["deleted"]) + clear_file_points(conn, source, source_rules, path)
                 for rule in source_rules:
                     run_exists = False
                     if not rescan and not sync:
