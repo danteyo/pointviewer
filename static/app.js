@@ -69,6 +69,25 @@ function setActiveRange(range) {
   });
 }
 
+function selectedMetric() {
+  return state.metrics.find((metric) => metric.key === state.selectedKey);
+}
+
+function updatePinButton() {
+  const button = $("pinMetricButton");
+  const metric = selectedMetric();
+  if (!metric) {
+    button.disabled = true;
+    button.textContent = "置顶";
+    button.classList.remove("active");
+    return;
+  }
+  button.disabled = !metric.rule_id;
+  button.textContent = metric.pinned ? "取消置顶" : "置顶";
+  button.classList.toggle("active", Boolean(metric.pinned));
+  button.title = metric.rule_id ? "" : "只有通过提取规则配置的指标可以置顶";
+}
+
 async function api(path, options = {}) {
   const response = await fetch(path, {
     credentials: "same-origin",
@@ -196,6 +215,7 @@ async function openHistory(key) {
   state.selectedKey = key;
   state.modalRange = getMetricRange(key);
   setActiveRange(state.modalRange);
+  updatePinButton();
   renderCards();
   $("historyModal").hidden = false;
   await loadHistory();
@@ -215,6 +235,35 @@ async function loadHistory() {
   const data = await api(`/api/history?key=${encodeURIComponent(state.selectedKey)}&start=${start}&end=${end}`);
   $("modalChartTitle").textContent = data.metric.name;
   drawChart(data.metric, data.points);
+}
+
+async function toggleSelectedMetricPin() {
+  const metric = selectedMetric();
+  if (!metric) return;
+  if (!metric.rule_id) {
+    showToast("这个指标没有对应的提取规则，不能置顶", "error");
+    return;
+  }
+  const button = $("pinMetricButton");
+  const nextPinned = !metric.pinned;
+  button.disabled = true;
+  button.textContent = nextPinned ? "置顶中..." : "取消中...";
+  try {
+    await api("/api/metric-pin", {
+      method: "POST",
+      body: JSON.stringify({
+        rule_id: metric.rule_id,
+        metric_key: metric.key,
+        pinned: nextPinned,
+      }),
+    });
+    await loadMetrics();
+    updatePinButton();
+    showToast(nextPinned ? "已置顶" : "已取消置顶");
+  } catch (error) {
+    showToast(error.message, "error");
+    updatePinButton();
+  }
 }
 
 function drawChart(metric, points) {
@@ -654,6 +703,7 @@ async function boot() {
   $("scanButton").addEventListener("click", scanNow);
   $("deleteSourceButton").addEventListener("click", deleteCurrentSource);
 
+  $("pinMetricButton").addEventListener("click", toggleSelectedMetricPin);
   $("closeHistoryButton").addEventListener("click", closeHistory);
   $("historyModal").addEventListener("click", (event) => {
     if (event.target === $("historyModal")) closeHistory();

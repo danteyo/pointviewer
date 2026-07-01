@@ -275,6 +275,7 @@ def latest_metrics() -> list[dict[str, object]]:
             """
             SELECT m.key, m.name, m.unit, m.category, m.updated_at,
                    p.value, p.recorded_at,
+                   cr.id AS rule_id,
                    COALESCE(cr.pinned, 0) AS pinned,
                    cr.source_id,
                    cs.name AS source_name,
@@ -487,6 +488,42 @@ def save_cron_source(data: dict[str, object]) -> dict[str, object]:
 def delete_cron_source(source_id: str) -> None:
     with connect() as conn:
         conn.execute("DELETE FROM cron_sources WHERE id = ?", (source_id,))
+
+
+def set_metric_pinned(rule_id: int, metric_key: str, pinned: bool) -> dict[str, object]:
+    if not rule_id:
+        raise ValueError("该指标没有可置顶的提取规则")
+    with connect() as conn:
+        rule = conn.execute(
+            """
+            SELECT id, metric_key, pinned
+            FROM cron_rules
+            WHERE id = ? AND metric_key = ?
+            """,
+            (rule_id, metric_key),
+        ).fetchone()
+        if not rule:
+            raise ValueError("没有找到对应的提取规则")
+        if pinned:
+            pinned_count = conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM cron_rules
+                WHERE id != ? AND enabled = 1 AND pinned = 1
+                """,
+                (rule_id,),
+            ).fetchone()[0]
+            if pinned_count >= 4:
+                raise ValueError("最多只能设置 4 个置顶指标")
+        conn.execute(
+            """
+            UPDATE cron_rules
+            SET pinned = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (1 if pinned else 0, now(), rule_id),
+        )
+    return {"ok": True, "rule_id": rule_id, "metric_key": metric_key, "pinned": pinned}
 
 
 def parse_number(value: str) -> float:
@@ -929,6 +966,19 @@ class HermesHandler(SimpleHTTPRequestHandler):
                     raise ValueError("delete payload must be an object")
                 delete_cron_source(str(data.get("id") or ""))
                 self.send_json(HTTPStatus.OK, {"ok": True})
+                return
+            if parsed.path == "/api/metric-pin":
+                if not self.require_session():
+                    return
+                data = self.read_json()
+                if not isinstance(data, dict):
+                    raise ValueError("pin payload must be an object")
+                result = set_metric_pinned(
+                    int(data.get("rule_id") or 0),
+                    str(data.get("metric_key") or ""),
+                    bool(data.get("pinned")),
+                )
+                self.send_json(HTTPStatus.OK, result)
                 return
             if parsed.path == "/api/cron-scan":
                 if not self.require_session():
