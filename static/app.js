@@ -90,6 +90,7 @@ function updatePinButton() {
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
+    cache: "no-store",
     credentials: "same-origin",
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
@@ -180,10 +181,11 @@ function renderMetricGrid(grid, metrics, label) {
 }
 
 async function loadMetrics() {
-  const data = await api("/api/metrics");
+  const data = await api(`/api/metrics?_=${Date.now()}`);
   state.metrics = data.metrics;
   if (!state.selectedKey && state.metrics.length) state.selectedKey = state.metrics[0].key;
   renderCards();
+  updatePinButton();
 }
 
 async function refreshMetrics() {
@@ -199,8 +201,9 @@ async function refreshMetrics() {
       body: JSON.stringify({ limit_per_source: 1, rescan: true }),
     });
     await loadMetrics();
+    if (!$("historyModal").hidden && state.selectedKey) await loadHistory();
     const errorText = result.errors?.length ? `，${result.errors.length} 个错误：${result.errors[0].error}` : "";
-    status.textContent = `已刷新：扫描 ${result.files} 个文件，新增 ${result.points} 个点${errorText}`;
+    status.textContent = `已刷新并更新页面：扫描 ${result.files} 个文件，写入 ${result.points} 个点${errorText}`;
     status.classList.toggle("error-text", Boolean(result.errors?.length));
   } catch (error) {
     status.textContent = error.message;
