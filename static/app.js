@@ -143,10 +143,13 @@ function renderMetricGrid(grid, metrics, label) {
     card.className = `metric-card ${metric.key === state.selectedKey ? "active" : ""}`;
     card.dataset.category = metric.category;
     card.dataset.pinned = metric.pinned ? "true" : "false";
+    const valueText = formatNumber(metric.value);
+    const displayLength = valueText.length;
+    card.dataset.valueSize = displayLength >= 10 ? "xs" : displayLength >= 8 ? "sm" : "lg";
     card.innerHTML = `
       <p class="name">${escapeHtml(metric.name)}</p>
       <p class="value">
-        <span>${formatNumber(metric.value)}</span>
+        <span>${valueText}</span>
         <span class="unit">${escapeHtml(metric.unit || "")}</span>
       </p>
       <span class="time">${formatTime(metric.recorded_at)}</span>
