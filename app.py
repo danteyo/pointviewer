@@ -18,12 +18,13 @@ import re
 import secrets
 import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone, tzinfo
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -34,6 +35,7 @@ HOST = os.environ.get("HERMES_HOST", "127.0.0.1")
 PORT = int(os.environ.get("HERMES_PORT", "8080"))
 SESSION_COOKIE = "hermes_session"
 DEFAULT_CRON_BASE = "~/.hermes/cron/output"
+TIMEZONE_NAME = os.environ.get("HERMES_TIMEZONE", "Asia/Shanghai")
 
 
 DEFAULT_CRON_SOURCES = [
@@ -504,8 +506,20 @@ def matched_value(match: re.Match[str], group_index: int) -> str:
         raise ValueError(f"pattern matched but capture group {group_index} does not exist") from exc
 
 
-def cron_file_recorded_at(path: Path) -> int:
-    name = path.name
+def app_timezone() -> tzinfo:
+    try:
+        return ZoneInfo(TIMEZONE_NAME)
+    except ZoneInfoNotFoundError:
+        if TIMEZONE_NAME in {"Asia/Shanghai", "Asia/Chongqing", "Asia/Harbin"}:
+            return timezone(timedelta(hours=8))
+        return timezone.utc
+
+
+def local_datetime_timestamp(value: datetime) -> int:
+    return int(value.replace(tzinfo=app_timezone()).timestamp())
+
+
+def parse_recorded_at_from_name(name: str) -> int | None:
     match = re.search(
         r"(?P<date>\d{4}-\d{2}-\d{2})(?:[_ T-](?P<hour>\d{2})[:.-]?(?P<minute>\d{2})(?:[:.-]?(?P<second>\d{2}))?)?",
         name,
@@ -516,9 +530,46 @@ def cron_file_recorded_at(path: Path) -> int:
             f"{match.group('hour')}:{match.group('minute')}:{match.group('second') or '00'}"
         )
         try:
-            return int(datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").timestamp())
+            return local_datetime_timestamp(datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S"))
         except ValueError:
             pass
+    return None
+
+
+def parse_recorded_at_from_content(content: str) -> int | None:
+    match = re.search(
+        r"(?P<year>\d{4})年(?P<month>\d{1,2})月(?P<day>\d{1,2})日"
+        r"(?:[^\d]{0,12}(?P<hour>\d{1,2})[:：](?P<minute>\d{2})(?:[:：](?P<second>\d{2}))?)?",
+        content[:500],
+    )
+    if not match:
+        return None
+    hour = int(match.group("hour") or 0)
+    minute = int(match.group("minute") or 0)
+    second = int(match.group("second") or 0)
+    try:
+        return local_datetime_timestamp(
+            datetime(
+                int(match.group("year")),
+                int(match.group("month")),
+                int(match.group("day")),
+                hour,
+                minute,
+                second,
+            )
+        )
+    except ValueError:
+        return None
+
+
+def cron_file_recorded_at(path: Path, content: str | None = None) -> int:
+    recorded_at = parse_recorded_at_from_name(path.name)
+    if recorded_at is not None:
+        return recorded_at
+    if content:
+        recorded_at = parse_recorded_at_from_content(content)
+        if recorded_at is not None:
+            return recorded_at
     return int(path.stat().st_mtime)
 
 
@@ -615,7 +666,7 @@ def scan_cron_outputs(
             try:
                 content = path.read_text(encoding="utf-8")
                 file_mtime = int(path.stat().st_mtime)
-                recorded_at = cron_file_recorded_at(path)
+                recorded_at = cron_file_recorded_at(path, content)
                 summary["files"] = int(summary["files"]) + 1
                 for rule in source_rules:
                     run_exists = False
