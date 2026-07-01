@@ -11,6 +11,11 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 let toastTimer = 0;
+const chartState = {
+  metric: null,
+  points: [],
+  hoverIndex: -1,
+};
 
 function showToast(message, type = "success", timeout = 2000) {
   const toast = $("configMessage");
@@ -41,6 +46,17 @@ function formatNumber(value) {
 function formatTime(seconds) {
   if (!seconds) return "尚未更新";
   return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(seconds * 1000));
+}
+
+function formatFullTime(seconds) {
+  if (!seconds) return "尚未更新";
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -269,17 +285,49 @@ async function toggleSelectedMetricPin() {
   }
 }
 
-function drawChart(metric, points) {
+function roundedRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+}
+
+function drawSmoothLine(ctx, chartPoints) {
+  chartPoints.forEach((point, index) => {
+    if (index === 0) {
+      ctx.moveTo(point.x, point.y);
+      return;
+    }
+    const previous = chartPoints[index - 1];
+    const controlX = previous.x + (point.x - previous.x) / 2;
+    ctx.bezierCurveTo(controlX, previous.y, controlX, point.y, point.x, point.y);
+  });
+}
+
+function drawChart(metric, points, hoverIndex = -1) {
   const canvas = $("trendCanvas");
   const ctx = canvas.getContext("2d");
   const width = canvas.width;
   const height = canvas.height;
-  const pad = { top: 76, right: 34, bottom: 54, left: 86 };
+  const pad = { top: 82, right: 42, bottom: 62, left: 92 };
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#ffffff";
+  const background = ctx.createLinearGradient(0, 0, 0, height);
+  background.addColorStop(0, "#ffffff");
+  background.addColorStop(1, "#fbfbfd");
+  ctx.fillStyle = background;
   ctx.fillRect(0, 0, width, height);
   $("emptyState").hidden = points.length > 0;
-  if (!points.length) return;
+  chartState.metric = metric;
+  chartState.points = [];
+  chartState.hoverIndex = hoverIndex;
+  if (!points.length) {
+    $("chartTooltip").hidden = true;
+    return;
+  }
 
   const values = points.map((point) => Number(point.value));
   const times = points.map((point) => Number(point.recorded_at));
@@ -297,11 +345,22 @@ function drawChart(metric, points) {
   const chartHeight = height - pad.top - pad.bottom;
   const x = (time) => pad.left + ((time - minTime) / timeSpan) * chartWidth;
   const y = (value) => pad.top + (1 - (value - minValue) / valueSpan) * chartHeight;
+  const chartPoints = points.map((point) => ({
+    value: Number(point.value),
+    recorded_at: Number(point.recorded_at),
+    x: x(Number(point.recorded_at)),
+    y: y(Number(point.value)),
+  }));
+  chartState.points = chartPoints;
 
-  ctx.strokeStyle = "#e5e5ea";
+  roundedRect(ctx, pad.left, pad.top, chartWidth, chartHeight, 18);
+  ctx.fillStyle = "rgba(245, 245, 247, 0.44)";
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(210, 210, 215, 0.72)";
   ctx.lineWidth = 1;
   ctx.fillStyle = "#86868b";
-  ctx.font = "18px system-ui";
+  ctx.font = "15px system-ui";
   ctx.textAlign = "right";
   for (let i = 0; i <= 4; i += 1) {
     const gy = pad.top + (chartHeight / 4) * i;
@@ -313,49 +372,125 @@ function drawChart(metric, points) {
     ctx.fillText(formatNumber(value), pad.left - 14, gy + 6);
   }
   ctx.textAlign = "left";
+  ctx.strokeStyle = "rgba(210, 210, 215, 0.32)";
+  for (let i = 0; i <= 3; i += 1) {
+    const gx = pad.left + (chartWidth / 3) * i;
+    ctx.beginPath();
+    ctx.moveTo(gx, pad.top);
+    ctx.lineTo(gx, height - pad.bottom);
+    ctx.stroke();
+  }
 
   const gradient = ctx.createLinearGradient(0, pad.top, 0, height - pad.bottom);
-  gradient.addColorStop(0, "rgba(0,113,227,0.2)");
+  gradient.addColorStop(0, "rgba(0,113,227,0.18)");
+  gradient.addColorStop(0.75, "rgba(0,113,227,0.04)");
   gradient.addColorStop(1, "rgba(0,113,227,0)");
   ctx.beginPath();
-  points.forEach((point, index) => {
-    const px = x(Number(point.recorded_at));
-    const py = y(Number(point.value));
-    if (index === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  });
-  ctx.lineTo(x(times[times.length - 1]), height - pad.bottom);
-  ctx.lineTo(x(times[0]), height - pad.bottom);
+  drawSmoothLine(ctx, chartPoints);
+  ctx.lineTo(chartPoints[chartPoints.length - 1].x, height - pad.bottom);
+  ctx.lineTo(chartPoints[0].x, height - pad.bottom);
   ctx.closePath();
   ctx.fillStyle = gradient;
   ctx.fill();
 
   ctx.beginPath();
-  points.forEach((point, index) => {
-    const px = x(Number(point.recorded_at));
-    const py = y(Number(point.value));
-    if (index === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  });
+  drawSmoothLine(ctx, chartPoints);
   ctx.strokeStyle = "#0071e3";
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 4;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
+  ctx.shadowColor = "rgba(0, 113, 227, 0.22)";
+  ctx.shadowBlur = 12;
   ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  for (const point of chartPoints) {
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,113,227,0.7)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  if (hoverIndex >= 0 && chartPoints[hoverIndex]) {
+    const hover = chartPoints[hoverIndex];
+    ctx.strokeStyle = "rgba(29,29,31,0.16)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(hover.x, pad.top);
+    ctx.lineTo(hover.x, height - pad.bottom);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(hover.x, hover.y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = "#0071e3";
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+  }
 
   const last = points[points.length - 1];
   ctx.fillStyle = "#1d1d1f";
-  ctx.font = "600 22px system-ui";
+  ctx.font = "700 24px system-ui";
   ctx.fillText(`${formatNumber(last.value)} ${metric?.unit || ""}`, pad.left, 36);
 
   ctx.fillStyle = "#86868b";
-  ctx.font = "17px system-ui";
+  ctx.font = "15px system-ui";
   const startLabel = formatTime(times[0]);
   const endLabel = formatTime(times[times.length - 1]);
   ctx.fillText(startLabel, pad.left, height - 10);
   ctx.textAlign = "right";
   ctx.fillText(endLabel, width - pad.right, height - 10);
   ctx.textAlign = "left";
+}
+
+function showChartTooltip(index) {
+  const tooltip = $("chartTooltip");
+  const canvas = $("trendCanvas");
+  const point = chartState.points[index];
+  if (!point) {
+    tooltip.hidden = true;
+    return;
+  }
+  const scaleX = canvas.clientWidth / canvas.width;
+  const scaleY = canvas.clientHeight / canvas.height;
+  const left = Math.min(canvas.clientWidth - 86, Math.max(86, point.x * scaleX));
+  const top = point.y * scaleY;
+  const metric = chartState.metric || {};
+  tooltip.innerHTML = `
+    <strong>${formatNumber(point.value)} ${escapeHtml(metric.unit || "")}</strong>
+    <span>${formatFullTime(point.recorded_at)}</span>
+  `;
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${Math.max(52, top)}px`;
+  tooltip.hidden = false;
+}
+
+function handleChartMove(event) {
+  if (!chartState.points.length) return;
+  const canvas = $("trendCanvas");
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = ((event.clientX - rect.left) / rect.width) * canvas.width;
+  let nearestIndex = 0;
+  let nearestDistance = Infinity;
+  chartState.points.forEach((point, index) => {
+    const distance = Math.abs(point.x - mouseX);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestIndex = index;
+    }
+  });
+  if (nearestIndex !== chartState.hoverIndex) {
+    drawChart(chartState.metric, chartState.points, nearestIndex);
+  }
+  showChartTooltip(nearestIndex);
+}
+
+function hideChartTooltip() {
+  $("chartTooltip").hidden = true;
+  if (chartState.hoverIndex >= 0) drawChart(chartState.metric, chartState.points);
 }
 
 async function loadConfig() {
@@ -708,6 +843,8 @@ async function boot() {
 
   $("pinMetricButton").addEventListener("click", toggleSelectedMetricPin);
   $("closeHistoryButton").addEventListener("click", closeHistory);
+  $("trendCanvas").addEventListener("mousemove", handleChartMove);
+  $("trendCanvas").addEventListener("mouseleave", hideChartTooltip);
   $("historyModal").addEventListener("click", (event) => {
     if (event.target === $("historyModal")) closeHistory();
   });
