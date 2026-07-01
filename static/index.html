@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes Dashboard</title>
-    <link rel="stylesheet" href="/app.css?v=17" />
+    <link rel="stylesheet" href="/app.css?v=18" />
   </head>
   <body>
     <main class="shell">
@@ -141,7 +141,6 @@
               </div>
               <button id="addRuleButton" class="ghost" type="button">添加规则</button>
             </div>
-            <p id="configMessage" class="config-message" role="status"></p>
             <div id="rulesList" class="rules-list"></div>
           </form>
         </section>
@@ -198,6 +197,8 @@
       </section>
     </div>
 
-    <script src="/app.js?v=17"></script>
+    <p id="configMessage" class="toast-message" role="status" aria-live="polite"></p>
+
+    <script src="/app.js?v=18"></script>
   </body>
 </html>

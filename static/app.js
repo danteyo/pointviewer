@@ -10,6 +10,17 @@ const state = {
 };
 
 const $ = (id) => document.getElementById(id);
+let toastTimer = 0;
+
+function showToast(message, type = "success", timeout = 2000) {
+  const toast = $("configMessage");
+  window.clearTimeout(toastTimer);
+  toast.textContent = message;
+  toast.className = `toast-message show ${type === "error" ? "error" : "success"}`;
+  toastTimer = window.setTimeout(() => {
+    toast.classList.remove("show");
+  }, timeout);
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -346,7 +357,6 @@ function renderSourceForm(source) {
   $("sourceEnabled").checked = Boolean(source.enabled);
   $("rulesList").innerHTML = "";
   for (const rule of [...(source.rules || [])].reverse()) addRuleRow(rule, { prepend: false });
-  $("configMessage").textContent = "";
   state.selectedPreviewFile = "";
   loadSourcePreview();
 }
@@ -521,8 +531,6 @@ function collectSourceForm() {
 
 async function saveSource(event) {
   event.preventDefault();
-  $("configMessage").textContent = "";
-  $("configMessage").classList.remove("error-text");
   const source = collectSourceForm();
   const result = await api("/api/cron-sources", {
     method: "POST",
@@ -531,7 +539,7 @@ async function saveSource(event) {
   state.selectedSourceId = result.id;
   await loadConfig();
   await loadMetrics();
-  $("configMessage").textContent = "已保存，指标页已更新";
+  showToast("已保存，指标页已更新");
 }
 
 async function deleteCurrentSource() {
@@ -548,16 +556,18 @@ async function deleteCurrentSource() {
 
 async function scanNow() {
   const source = currentSource();
-  $("configMessage").textContent = "同步中...";
-  $("configMessage").classList.remove("error-text");
-  const result = await api("/api/cron-scan", {
-    method: "POST",
-    body: JSON.stringify({ limit_per_source: 0, sync: true, source_id: source?.id || "" }),
-  });
-  const errorText = result.errors?.length ? `，${result.errors.length} 个错误：${result.errors[0].error}` : "";
-  $("configMessage").textContent = `同步完成：${result.files} 个文件，写入 ${result.points} 个点，清理 ${result.deleted || 0} 个旧点${errorText}`;
-  $("configMessage").classList.toggle("error-text", Boolean(result.errors?.length));
-  await loadMetrics();
+  showToast("同步中...", "success", 4000);
+  try {
+    const result = await api("/api/cron-scan", {
+      method: "POST",
+      body: JSON.stringify({ limit_per_source: 0, sync: true, source_id: source?.id || "" }),
+    });
+    const errorText = result.errors?.length ? `，${result.errors.length} 个错误：${result.errors[0].error}` : "";
+    showToast(`同步完成：${result.files} 个文件，写入 ${result.points} 个点，清理 ${result.deleted || 0} 个旧点${errorText}`, result.errors?.length ? "error" : "success");
+    await loadMetrics();
+  } catch (error) {
+    showToast(error.message, "error");
+  }
 }
 
 function resetPasswordForm() {
