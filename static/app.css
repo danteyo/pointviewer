@@ -755,32 +755,71 @@ button:disabled {
   animation: panelIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* ============ 调度面板 (iframe 嵌入) ============ */
-.schedule-panel {
-  width: 100%;
+/* ============ 调度浮窗 (iframe 嵌入) ============ */
+.schedule-modal {
+  position: relative;
+  width: min(1280px, 94vw);
+  height: min(860px, 90vh);
   display: flex;
   flex-direction: column;
-  animation: panelIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 22px 24px 24px;
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  box-shadow:
+    0 30px 100px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  animation: modalIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.schedule-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.schedule-head .controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.external-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 22px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 750;
+  font-size: 14px;
 }
 
 .schedule-frame-wrap {
   position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  height: calc(100vh - 220px);
-  min-height: 480px;
   border: 1px solid var(--line);
-  border-radius: 20px;
-  overflow: hidden;
+  border-radius: 16px;
+  overflow: auto;
   background: var(--panel-solid);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 12px 40px rgba(0, 0, 0, 0.45);
+    0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 #scheduleFrame {
   display: block;
   width: 100%;
   height: 100%;
+  min-height: 560px;
   border: 0;
   background: var(--bg);
 }
@@ -1137,9 +1176,24 @@ button:disabled {
   }
 
   .schedule-frame-wrap {
-    height: calc(100vh - 180px);
-    min-height: 420px;
+    border-radius: 12px;
+  }
+
+  .schedule-modal {
+    width: 96vw;
+    height: 94vh;
+    padding: 16px;
     border-radius: 16px;
+  }
+
+  .schedule-head {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .external-link {
+    min-height: 40px;
+    padding: 0 16px;
   }
 
   .rule-row .wide,

@@ -122,7 +122,7 @@ function show(view) {
 }
 
 function setPanel(panel) {
-  const panels = { metrics: "metricsPanel", schedule: "schedulePanel", config: "configPanel", password: "passwordPanel" };
+  const panels = { metrics: "metricsPanel", config: "configPanel", password: "passwordPanel" };
   for (const [key, id] of Object.entries(panels)) {
     const el = $(id);
     if (key === panel) {
@@ -134,33 +134,28 @@ function setPanel(panel) {
       el.hidden = true;
     }
   }
-  const titles = {
-    metrics:  { kicker: "Hermes",   title: "实时指标" },
-    schedule: { kicker: "Hermes",   title: "任务调度" },
-    config:   { kicker: "Hermes",   title: "配置管理" },
-    password: { kicker: "Security", title: "修改密码" },
-  };
-  const t = titles[panel];
-  if (t) {
-    $("topKicker").textContent = t.kicker;
-    $("topTitle").textContent = t.title;
-  }
   $("metricsTab").classList.toggle("active", panel === "metrics");
-  $("scheduleTab").classList.toggle("active", panel === "schedule");
   $("configTab").classList.toggle("active", panel === "config");
   $("passwordTab").classList.toggle("active", panel === "password");
-  if (panel === "schedule") loadScheduleFrame();
   if (panel === "config") loadConfig();
   if (panel === "password") resetPasswordForm();
 }
 
-function loadScheduleFrame() {
+const SCHEDULE_URL = "http://64.110.104.241:8081";
+
+function openSchedule() {
+  const modal = $("scheduleModal");
+  modal.hidden = false;
   const frame = $("scheduleFrame");
-  const target = "http://64.110.104.241:8081";
   if (frame.dataset.loaded !== "1") {
-    frame.src = target;
+    frame.src = SCHEDULE_URL;
     frame.dataset.loaded = "1";
   }
+  $("scheduleOpenExternal").href = SCHEDULE_URL;
+}
+
+function closeSchedule() {
+  $("scheduleModal").hidden = true;
 }
 
 function renderCards() {
@@ -887,7 +882,7 @@ async function boot() {
   });
 
   $("metricsTab").addEventListener("click", () => setPanel("metrics"));
-  $("scheduleTab").addEventListener("click", () => setPanel("schedule"));
+  $("scheduleTab").addEventListener("click", openSchedule);
   $("configTab").addEventListener("click", () => setPanel("config"));
   $("passwordTab").addEventListener("click", () => setPanel("password"));
   $("newSourceButton").addEventListener("click", () => {
@@ -919,8 +914,15 @@ async function boot() {
   $("historyModal").addEventListener("click", (event) => {
     if (event.target === $("historyModal")) closeHistory();
   });
+  $("closeScheduleButton").addEventListener("click", closeSchedule);
+  $("scheduleModal").addEventListener("click", (event) => {
+    if (event.target === $("scheduleModal")) closeSchedule();
+  });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeHistory();
+    if (event.key === "Escape") {
+      if (!$("scheduleModal").hidden) closeSchedule();
+      else closeHistory();
+    }
   });
   document.querySelectorAll("[data-modal-range]").forEach((button) => {
     button.addEventListener("click", async () => {
