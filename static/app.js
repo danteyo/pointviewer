@@ -122,7 +122,7 @@ function show(view) {
 }
 
 function setPanel(panel) {
-  const panels = { metrics: "metricsPanel", config: "configPanel", password: "passwordPanel" };
+  const panels = { metrics: "metricsPanel", schedule: "schedulePanel", config: "configPanel", password: "passwordPanel" };
   for (const [key, id] of Object.entries(panels)) {
     const el = $(id);
     if (key === panel) {
@@ -135,10 +135,21 @@ function setPanel(panel) {
     }
   }
   $("metricsTab").classList.toggle("active", panel === "metrics");
+  $("scheduleTab").classList.toggle("active", panel === "schedule");
   $("configTab").classList.toggle("active", panel === "config");
   $("passwordTab").classList.toggle("active", panel === "password");
+  if (panel === "schedule") loadScheduleFrame();
   if (panel === "config") loadConfig();
   if (panel === "password") resetPasswordForm();
+}
+
+function loadScheduleFrame() {
+  const frame = $("scheduleFrame");
+  const target = "http://64.110.104.241:8081";
+  if (frame.dataset.loaded !== "1") {
+    frame.src = target;
+    frame.dataset.loaded = "1";
+  }
 }
 
 function renderCards() {
@@ -865,6 +876,7 @@ async function boot() {
   });
 
   $("metricsTab").addEventListener("click", () => setPanel("metrics"));
+  $("scheduleTab").addEventListener("click", () => setPanel("schedule"));
   $("configTab").addEventListener("click", () => setPanel("config"));
   $("passwordTab").addEventListener("click", () => setPanel("password"));
   $("newSourceButton").addEventListener("click", () => {

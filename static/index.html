@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes Dashboard</title>
-    <link rel="stylesheet" href="/app.css?v=28" />
+    <link rel="stylesheet" href="/app.css?v=29" />
   </head>
   <body>
     <main class="shell">
@@ -32,6 +32,7 @@
           <div class="top-actions">
             <div class="view-tabs" role="group" aria-label="页面">
               <button id="metricsTab" class="active" type="button">指标</button>
+              <button id="scheduleTab" type="button">调度</button>
               <button id="configTab" type="button">配置</button>
               <button id="passwordTab" type="button">密码</button>
             </div>
@@ -176,6 +177,13 @@
             <p id="passwordMessage" class="config-message" role="status"></p>
           </form>
         </section>
+
+        <section id="schedulePanel" class="schedule-panel" hidden>
+          <div class="schedule-frame-wrap">
+            <iframe id="scheduleFrame" src="about:blank" title="调度" loading="lazy"
+                    referrerpolicy="no-referrer" allow="fullscreen"></iframe>
+          </div>
+        </section>
       </section>
     </main>
 
@@ -206,6 +214,6 @@
 
     <p id="configMessage" class="toast-message" role="status" aria-live="polite"></p>
 
-    <script src="/app.js?v=27"></script>
+    <script src="/app.js?v=29"></script>
   </body>
 </html>

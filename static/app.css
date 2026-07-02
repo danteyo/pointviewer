@@ -308,7 +308,7 @@ button:disabled {
 /* Tabs - 滑动指示器 */
 .view-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 78px);
+  grid-template-columns: repeat(4, 78px);
   gap: 4px;
   padding: 4px;
   border: 1px solid var(--line);
@@ -754,6 +754,36 @@ button:disabled {
   animation: panelIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* ============ 调度面板 (iframe 嵌入) ============ */
+.schedule-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: panelIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.schedule-frame-wrap {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 220px);
+  min-height: 480px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--panel-solid);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+#scheduleFrame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--bg);
+}
+
 .password-form {
   width: min(680px, 100%);
   padding: 28px;
@@ -1103,6 +1133,12 @@ button:disabled {
   .rule-row {
     width: 100%;
     grid-template-columns: 1fr;
+  }
+
+  .schedule-frame-wrap {
+    height: calc(100vh - 180px);
+    min-height: 420px;
+    border-radius: 16px;
   }
 
   .rule-row .wide,
