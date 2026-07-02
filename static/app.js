@@ -134,6 +134,17 @@ function setPanel(panel) {
       el.hidden = true;
     }
   }
+  const titles = {
+    metrics:  { kicker: "Hermes",   title: "实时指标" },
+    schedule: { kicker: "Hermes",   title: "任务调度" },
+    config:   { kicker: "Hermes",   title: "配置管理" },
+    password: { kicker: "Security", title: "修改密码" },
+  };
+  const t = titles[panel];
+  if (t) {
+    $("topKicker").textContent = t.kicker;
+    $("topTitle").textContent = t.title;
+  }
   $("metricsTab").classList.toggle("active", panel === "metrics");
   $("scheduleTab").classList.toggle("active", panel === "schedule");
   $("configTab").classList.toggle("active", panel === "config");

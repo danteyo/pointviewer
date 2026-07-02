@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes Dashboard</title>
-    <link rel="stylesheet" href="/app.css?v=29" />
+    <link rel="stylesheet" href="/app.css?v=30" />
   </head>
   <body>
     <main class="shell">
@@ -26,8 +26,8 @@
       <section id="dashboardView" class="dashboard" hidden>
         <header class="topbar">
           <div>
-            <p class="kicker">Hermes</p>
-            <h1>实时指标</h1>
+            <p class="kicker" id="topKicker">Hermes</p>
+            <h1 id="topTitle">实时指标</h1>
           </div>
           <div class="top-actions">
             <div class="view-tabs" role="group" aria-label="页面">
@@ -214,6 +214,6 @@
 
     <p id="configMessage" class="toast-message" role="status" aria-live="polite"></p>
 
-    <script src="/app.js?v=29"></script>
+    <script src="/app.js?v=30"></script>
   </body>
 </html>
