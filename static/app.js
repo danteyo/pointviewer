@@ -122,9 +122,18 @@ function show(view) {
 }
 
 function setPanel(panel) {
-  $("metricsPanel").hidden = panel !== "metrics";
-  $("configPanel").hidden = panel !== "config";
-  $("passwordPanel").hidden = panel !== "password";
+  const panels = { metrics: "metricsPanel", config: "configPanel", password: "passwordPanel" };
+  for (const [key, id] of Object.entries(panels)) {
+    const el = $(id);
+    if (key === panel) {
+      el.hidden = false;
+      el.style.animation = "none";
+      void el.offsetWidth;
+      el.style.animation = "";
+    } else {
+      el.hidden = true;
+    }
+  }
   $("metricsTab").classList.toggle("active", panel === "metrics");
   $("configTab").classList.toggle("active", panel === "config");
   $("passwordTab").classList.toggle("active", panel === "password");
@@ -171,14 +180,23 @@ function renderCards() {
   }
 }
 
+function attachCardGlow(card) {
+  card.addEventListener("mousemove", (event) => {
+    const rect = card.getBoundingClientRect();
+    card.style.setProperty("--mx", `${((event.clientX - rect.left) / rect.width) * 100}%`);
+    card.style.setProperty("--my", `${((event.clientY - rect.top) / rect.height) * 100}%`);
+  });
+}
+
 function renderMetricGrid(grid, metrics, label) {
   grid.innerHTML = "";
-  for (const metric of metrics) {
+  metrics.forEach((metric, index) => {
     const card = document.createElement("button");
     card.type = "button";
     card.className = `metric-card ${metric.key === state.selectedKey ? "active" : ""}`;
     card.dataset.category = metric.category;
     card.dataset.pinned = metric.pinned ? "true" : "false";
+    card.style.animationDelay = `${Math.min(index, 8) * 60}ms`;
     const valueText = formatNumber(metric.value);
     const displayLength = valueText.length;
     card.dataset.valueSize = displayLength >= 10 ? "xs" : displayLength >= 8 ? "sm" : "lg";
@@ -192,8 +210,9 @@ function renderMetricGrid(grid, metrics, label) {
     `;
     card.setAttribute("aria-label", `${label} ${metric.name} 历史趋势`);
     card.addEventListener("click", () => openHistory(metric.key));
+    attachCardGlow(card);
     grid.appendChild(card);
-  }
+  });
 }
 
 async function loadMetrics() {
@@ -316,8 +335,8 @@ function drawChart(metric, points, hoverIndex = -1) {
   const pad = { top: 82, right: 42, bottom: 62, left: 92 };
   ctx.clearRect(0, 0, width, height);
   const background = ctx.createLinearGradient(0, 0, 0, height);
-  background.addColorStop(0, "#ffffff");
-  background.addColorStop(1, "#fbfbfd");
+  background.addColorStop(0, "rgba(10, 15, 28, 0.6)");
+  background.addColorStop(1, "rgba(5, 7, 13, 0.8)");
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, width, height);
   $("emptyState").hidden = points.length > 0;
@@ -354,12 +373,12 @@ function drawChart(metric, points, hoverIndex = -1) {
   chartState.points = chartPoints;
 
   roundedRect(ctx, pad.left, pad.top, chartWidth, chartHeight, 18);
-  ctx.fillStyle = "rgba(245, 245, 247, 0.44)";
+  ctx.fillStyle = "rgba(120, 140, 200, 0.05)";
   ctx.fill();
 
-  ctx.strokeStyle = "rgba(210, 210, 215, 0.72)";
+  ctx.strokeStyle = "rgba(120, 140, 200, 0.12)";
   ctx.lineWidth = 1;
-  ctx.fillStyle = "#86868b";
+  ctx.fillStyle = "#8b94ad";
   ctx.font = "15px system-ui";
   ctx.textAlign = "right";
   for (let i = 0; i <= 4; i += 1) {
@@ -372,7 +391,7 @@ function drawChart(metric, points, hoverIndex = -1) {
     ctx.fillText(formatNumber(value), pad.left - 14, gy + 6);
   }
   ctx.textAlign = "left";
-  ctx.strokeStyle = "rgba(210, 210, 215, 0.32)";
+  ctx.strokeStyle = "rgba(120, 140, 200, 0.08)";
   for (let i = 0; i <= 3; i += 1) {
     const gx = pad.left + (chartWidth / 3) * i;
     ctx.beginPath();
@@ -382,9 +401,9 @@ function drawChart(metric, points, hoverIndex = -1) {
   }
 
   const gradient = ctx.createLinearGradient(0, pad.top, 0, height - pad.bottom);
-  gradient.addColorStop(0, "rgba(0,113,227,0.18)");
-  gradient.addColorStop(0.75, "rgba(0,113,227,0.04)");
-  gradient.addColorStop(1, "rgba(0,113,227,0)");
+  gradient.addColorStop(0, "rgba(0,217,255,0.28)");
+  gradient.addColorStop(0.75, "rgba(0,217,255,0.06)");
+  gradient.addColorStop(1, "rgba(0,217,255,0)");
   ctx.beginPath();
   drawSmoothLine(ctx, chartPoints);
   ctx.lineTo(chartPoints[chartPoints.length - 1].x, height - pad.bottom);
@@ -395,28 +414,28 @@ function drawChart(metric, points, hoverIndex = -1) {
 
   ctx.beginPath();
   drawSmoothLine(ctx, chartPoints);
-  ctx.strokeStyle = "#0071e3";
-  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#00d9ff";
+  ctx.lineWidth = 3;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
-  ctx.shadowColor = "rgba(0, 113, 227, 0.22)";
-  ctx.shadowBlur = 12;
+  ctx.shadowColor = "rgba(0, 217, 255, 0.5)";
+  ctx.shadowBlur = 16;
   ctx.stroke();
   ctx.shadowBlur = 0;
 
   for (const point of chartPoints) {
     ctx.beginPath();
-    ctx.arc(point.x, point.y, 4.5, 0, Math.PI * 2);
-    ctx.fillStyle = "#ffffff";
+    ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#05070d";
     ctx.fill();
-    ctx.strokeStyle = "rgba(0,113,227,0.7)";
+    ctx.strokeStyle = "#00d9ff";
     ctx.lineWidth = 2;
     ctx.stroke();
   }
 
   if (hoverIndex >= 0 && chartPoints[hoverIndex]) {
     const hover = chartPoints[hoverIndex];
-    ctx.strokeStyle = "rgba(29,29,31,0.16)";
+    ctx.strokeStyle = "rgba(0,217,255,0.3)";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(hover.x, pad.top);
@@ -424,19 +443,22 @@ function drawChart(metric, points, hoverIndex = -1) {
     ctx.stroke();
     ctx.beginPath();
     ctx.arc(hover.x, hover.y, 8, 0, Math.PI * 2);
-    ctx.fillStyle = "#0071e3";
+    ctx.fillStyle = "#00d9ff";
+    ctx.shadowColor = "rgba(0, 217, 255, 0.7)";
+    ctx.shadowBlur = 18;
     ctx.fill();
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = "#ffffff";
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#05070d";
     ctx.stroke();
   }
 
   const last = points[points.length - 1];
-  ctx.fillStyle = "#1d1d1f";
+  ctx.fillStyle = "#e8ecf5";
   ctx.font = "700 24px system-ui";
   ctx.fillText(`${formatNumber(last.value)} ${metric?.unit || ""}`, pad.left, 36);
 
-  ctx.fillStyle = "#86868b";
+  ctx.fillStyle = "#8b94ad";
   ctx.font = "15px system-ui";
   const startLabel = formatTime(times[0]);
   const endLabel = formatTime(times[times.length - 1]);
