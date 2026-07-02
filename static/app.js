@@ -760,6 +760,31 @@ async function scanNow() {
   }
 }
 
+async function scanAllSources() {
+  const button = $("globalScanButton");
+  button.disabled = true;
+  button.textContent = "扫描中...";
+  showToast("正在同步所有定时任务...", "success", 4000);
+  try {
+    const result = await api("/api/cron-scan", {
+      method: "POST",
+      body: JSON.stringify({ limit_per_source: 0, sync: true }),
+    });
+    const errorText = result.errors?.length ? `，${result.errors.length} 个错误：${result.errors[0].error}` : "";
+    showToast(
+      `全局同步完成：${result.sources} 个来源，${result.files} 个文件，写入 ${result.points} 个点，清理 ${result.deleted || 0} 个旧点${errorText}`,
+      result.errors?.length ? "error" : "success",
+    );
+    await loadMetrics();
+    if (!$("historyModal").hidden && state.selectedKey) await loadHistory();
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    button.disabled = false;
+    button.textContent = "全局扫描";
+  }
+}
+
 function resetPasswordForm() {
   $("passwordForm").reset();
   $("passwordMessage").textContent = "";
@@ -825,6 +850,7 @@ async function boot() {
     renderSources();
     renderSourceForm(newSource());
   });
+  $("globalScanButton").addEventListener("click", scanAllSources);
   $("addRuleButton").addEventListener("click", () => addRuleRow({}, { prepend: true }));
   $("refreshPreviewButton").addEventListener("click", () => loadSourcePreview());
   $("sourceDir").addEventListener("change", () => {

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes Dashboard</title>
-    <link rel="stylesheet" href="/app.css?v=25" />
+    <link rel="stylesheet" href="/app.css?v=26" />
   </head>
   <body>
     <main class="shell">
@@ -63,7 +63,10 @@
                 <p class="kicker">Sources</p>
                 <h2>定时任务</h2>
               </div>
-              <button id="newSourceButton" type="button">新增</button>
+              <div class="source-actions">
+                <button id="globalScanButton" class="ghost" type="button">全局扫描</button>
+                <button id="newSourceButton" type="button">新增</button>
+              </div>
             </div>
             <div id="sourceList"></div>
           </aside>
@@ -203,6 +206,6 @@
 
     <p id="configMessage" class="toast-message" role="status" aria-live="polite"></p>
 
-    <script src="/app.js?v=25"></script>
+    <script src="/app.js?v=26"></script>
   </body>
 </html>
