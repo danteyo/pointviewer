@@ -137,6 +137,7 @@ function setPanel(panel) {
   $("metricsTab").classList.toggle("active", panel === "metrics");
   $("configTab").classList.toggle("active", panel === "config");
   $("passwordTab").classList.toggle("active", panel === "password");
+  if (panel !== "schedule") $("scheduleTab").classList.remove("active");
   if (panel === "config") loadConfig();
   if (panel === "password") resetPasswordForm();
 }
@@ -146,6 +147,7 @@ const SCHEDULE_URL = "http://64.110.104.241:8081";
 function openSchedule() {
   const modal = $("scheduleModal");
   modal.hidden = false;
+  $("scheduleTab").classList.add("active");
   const frame = $("scheduleFrame");
   if (frame.dataset.loaded !== "1") {
     frame.src = SCHEDULE_URL;
@@ -156,6 +158,7 @@ function openSchedule() {
 
 function closeSchedule() {
   $("scheduleModal").hidden = true;
+  $("scheduleTab").classList.remove("active");
 }
 
 function renderCards() {

@@ -308,6 +308,8 @@ button:disabled {
 /* Tabs - 滑动指示器 */
 .view-tabs {
   display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 4px;
   padding: 4px;
   border: 1px solid var(--line);
@@ -315,13 +317,15 @@ button:disabled {
   background: rgba(10, 15, 28, 0.6);
   backdrop-filter: blur(12px);
   position: relative;
+  white-space: nowrap;
 }
 
 .view-tabs button {
   min-height: 36px;
-  min-width: 78px;
-  padding: 0 14px;
+  min-width: 64px;
+  padding: 0 16px;
   white-space: nowrap;
+  flex-shrink: 0;
   background: transparent;
   color: var(--muted);
   font-size: 13px;
@@ -758,8 +762,8 @@ button:disabled {
 /* ============ 调度浮窗 (iframe 嵌入) ============ */
 .schedule-modal {
   position: relative;
-  width: min(1280px, 94vw);
-  height: min(860px, 90vh);
+  width: min(1400px, 96vw);
+  height: min(900px, 94vh);
   display: flex;
   flex-direction: column;
   background: var(--panel);
@@ -808,8 +812,8 @@ button:disabled {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 16px;
-  overflow: auto;
-  background: var(--panel-solid);
+  overflow: hidden;
+  background: var(--bg);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 8px 24px rgba(0, 0, 0, 0.35);
@@ -819,7 +823,6 @@ button:disabled {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 560px;
   border: 0;
   background: var(--bg);
 }
