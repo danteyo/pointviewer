@@ -137,28 +137,8 @@ function setPanel(panel) {
   $("metricsTab").classList.toggle("active", panel === "metrics");
   $("configTab").classList.toggle("active", panel === "config");
   $("passwordTab").classList.toggle("active", panel === "password");
-  if (panel !== "schedule") $("scheduleTab").classList.remove("active");
   if (panel === "config") loadConfig();
   if (panel === "password") resetPasswordForm();
-}
-
-const SCHEDULE_URL = "http://64.110.104.241:8081";
-
-function openSchedule() {
-  const modal = $("scheduleModal");
-  modal.hidden = false;
-  $("scheduleTab").classList.add("active");
-  const frame = $("scheduleFrame");
-  if (frame.dataset.loaded !== "1") {
-    frame.src = SCHEDULE_URL;
-    frame.dataset.loaded = "1";
-  }
-  $("scheduleOpenExternal").href = SCHEDULE_URL;
-}
-
-function closeSchedule() {
-  $("scheduleModal").hidden = true;
-  $("scheduleTab").classList.remove("active");
 }
 
 function renderCards() {
@@ -885,7 +865,6 @@ async function boot() {
   });
 
   $("metricsTab").addEventListener("click", () => setPanel("metrics"));
-  $("scheduleTab").addEventListener("click", openSchedule);
   $("configTab").addEventListener("click", () => setPanel("config"));
   $("passwordTab").addEventListener("click", () => setPanel("password"));
   $("newSourceButton").addEventListener("click", () => {
@@ -917,14 +896,9 @@ async function boot() {
   $("historyModal").addEventListener("click", (event) => {
     if (event.target === $("historyModal")) closeHistory();
   });
-  $("closeScheduleButton").addEventListener("click", closeSchedule);
-  $("scheduleModal").addEventListener("click", (event) => {
-    if (event.target === $("scheduleModal")) closeSchedule();
-  });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      if (!$("scheduleModal").hidden) closeSchedule();
-      else closeHistory();
+      closeHistory();
     }
   });
   document.querySelectorAll("[data-modal-range]").forEach((button) => {
