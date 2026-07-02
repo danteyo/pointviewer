@@ -485,12 +485,19 @@ button:disabled {
     0 0 32px rgba(255, 61, 138, 0.2);
 }
 
+/* 指标卡片自身不要继承 button 的扫光条 */
+.metric-card::after {
+  content: none;
+}
+
 /* 置顶角标 (::after) */
 .top-grid .metric-card::after {
   content: "置顶";
   position: absolute;
   top: 16px;
   right: 16px;
+  bottom: auto;
+  left: auto;
   width: fit-content;
   padding: 4px 10px;
   color: var(--pinned);
@@ -502,6 +509,8 @@ button:disabled {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   z-index: 2;
+  transform: none;
+  transition: none;
 }
 
 .metric-card.active {
