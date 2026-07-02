@@ -307,8 +307,7 @@ button:disabled {
 
 /* Tabs - 滑动指示器 */
 .view-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, 78px);
+  display: inline-flex;
   gap: 4px;
   padding: 4px;
   border: 1px solid var(--line);
@@ -320,7 +319,9 @@ button:disabled {
 
 .view-tabs button {
   min-height: 36px;
-  padding: 0;
+  min-width: 78px;
+  padding: 0 14px;
+  white-space: nowrap;
   background: transparent;
   color: var(--muted);
   font-size: 13px;
