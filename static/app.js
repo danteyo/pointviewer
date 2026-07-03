@@ -151,9 +151,10 @@ function openSchedule() {
   $("scheduleFrameStatus").hidden = false;
   $("scheduleFrameStatus").textContent = "正在加载调度页面...";
   const frame = $("scheduleFrame");
-  const scale = window.matchMedia("(max-width: 720px)").matches ? "0.9" : "1";
+  const isMobile = window.matchMedia("(max-width: 720px)").matches;
+  const scheduleUrl = `${SCHEDULE_URL}/?${isMobile ? "embed=mobile" : "scale=1"}&t=${Date.now()}`;
   window.clearTimeout(scheduleLoadTimer);
-  frame.src = `${SCHEDULE_URL}/?scale=${scale}&t=${Date.now()}`;
+  frame.src = scheduleUrl;
   $("scheduleOpenExternal").href = SCHEDULE_URL;
   scheduleLoadTimer = window.setTimeout(() => {
     $("scheduleFrameStatus").hidden = false;
