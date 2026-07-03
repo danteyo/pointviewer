@@ -142,7 +142,7 @@ function setPanel(panel) {
   if (panel === "password") resetPasswordForm();
 }
 
-const SCHEDULE_URL = "http://64.110.104.241:8080";
+const SCHEDULE_URL = "http://64.110.104.241:8081";
 
 function openSchedule() {
   $("scheduleModal").hidden = false;
