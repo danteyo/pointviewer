@@ -550,7 +550,7 @@ function newSource() {
   return {
     id: "",
     name: "",
-    output_dir: "~/.hermes/cron/output/",
+    output_dir: "/hermes_cron_output/",
     file_glob: "*.md",
     schedule: "",
     enabled: 1,

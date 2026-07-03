@@ -34,7 +34,7 @@ DB_PATH = Path(os.environ.get("HERMES_DB_PATH", DATA_DIR / "hermes.db"))
 HOST = os.environ.get("HERMES_HOST", "127.0.0.1")
 PORT = int(os.environ.get("HERMES_PORT", "8080"))
 SESSION_COOKIE = "hermes_session"
-DEFAULT_CRON_BASE = "~/.hermes/cron/output"
+DEFAULT_CRON_BASE = "/hermes_cron_output"
 TIMEZONE_NAME = os.environ.get("HERMES_TIMEZONE", "Asia/Shanghai")
 
 
