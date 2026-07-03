@@ -35,6 +35,10 @@ HOST = os.environ.get("HERMES_HOST", "127.0.0.1")
 PORT = int(os.environ.get("HERMES_PORT", "8080"))
 SESSION_COOKIE = "hermes_session"
 DEFAULT_CRON_BASE = "/hermes_cron_output"
+LEGACY_CRON_BASES = (
+    "~/.hermes/cron/output",
+    "/home/ubuntu/.hermes/cron/output",
+)
 TIMEZONE_NAME = os.environ.get("HERMES_TIMEZONE", "Asia/Shanghai")
 
 
@@ -235,6 +239,32 @@ def init_db() -> None:
                         now(),
                     ),
                 )
+        migrate_cron_output_dirs(conn)
+
+
+def normalize_output_dir(value: str) -> str:
+    cleaned = value.strip()
+    for legacy_base in LEGACY_CRON_BASES:
+        if cleaned == legacy_base:
+            return DEFAULT_CRON_BASE
+        if cleaned.startswith(f"{legacy_base}/"):
+            return f"{DEFAULT_CRON_BASE}{cleaned[len(legacy_base):]}"
+    return cleaned
+
+
+def migrate_cron_output_dirs(conn: sqlite3.Connection) -> None:
+    rows = conn.execute("SELECT id, output_dir FROM cron_sources").fetchall()
+    for row in rows:
+        normalized = normalize_output_dir(str(row["output_dir"]))
+        if normalized != row["output_dir"]:
+            conn.execute(
+                """
+                UPDATE cron_sources
+                SET output_dir = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (normalized, now(), row["id"]),
+            )
 
 
 def get_setting(key: str) -> str | None:
@@ -386,7 +416,7 @@ def clean_source_id(value: str) -> str:
 def save_cron_source(data: dict[str, object]) -> dict[str, object]:
     source_id = clean_source_id(str(data.get("id") or data.get("name") or "source"))
     name = str(data.get("name") or source_id).strip()
-    output_dir = str(data.get("output_dir") or "").strip()
+    output_dir = normalize_output_dir(str(data.get("output_dir") or ""))
     file_glob = str(data.get("file_glob") or "*.md").strip()
     schedule = str(data.get("schedule") or "").strip()
     enabled = 1 if data.get("enabled", True) else 0
@@ -611,7 +641,7 @@ def cron_file_recorded_at(path: Path, content: str | None = None) -> int:
 
 
 def resolve_output_dir(value: str) -> Path:
-    raw = value.strip()
+    raw = normalize_output_dir(value)
     expanded = Path(raw).expanduser()
     candidates = [expanded]
     if raw.startswith("~/"):
