@@ -843,6 +843,23 @@ button:disabled {
   background: var(--bg);
 }
 
+.schedule-frame-status {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 28px;
+  color: var(--muted);
+  background:
+    radial-gradient(circle at 50% 42%, rgba(0, 217, 255, 0.1), transparent 36%),
+    rgba(5, 7, 13, 0.92);
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
 #scheduleFrame {
   display: block;
   width: 100%;

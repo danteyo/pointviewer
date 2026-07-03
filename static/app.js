@@ -11,6 +11,7 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 let toastTimer = 0;
+let scheduleLoadTimer = 0;
 const chartState = {
   metric: null,
   points: [],
@@ -147,17 +148,22 @@ const SCHEDULE_URL = "http://64.110.104.241:8081";
 function openSchedule() {
   $("scheduleModal").hidden = false;
   $("scheduleTab").classList.add("active");
+  $("scheduleFrameStatus").hidden = false;
+  $("scheduleFrameStatus").textContent = "正在加载调度页面...";
   const frame = $("scheduleFrame");
-  if (frame.dataset.loaded !== "1") {
-    frame.src = SCHEDULE_URL;
-    frame.dataset.loaded = "1";
-  }
+  window.clearTimeout(scheduleLoadTimer);
+  frame.src = `${SCHEDULE_URL}/?embedded=1&t=${Date.now()}`;
   $("scheduleOpenExternal").href = SCHEDULE_URL;
+  scheduleLoadTimer = window.setTimeout(() => {
+    $("scheduleFrameStatus").hidden = false;
+    $("scheduleFrameStatus").textContent = "调度页面仍未显示，可能被浏览器或目标服务拦截嵌入。请点击“新窗口”打开。";
+  }, 8000);
 }
 
 function closeSchedule() {
   $("scheduleModal").hidden = true;
   $("scheduleTab").classList.remove("active");
+  window.clearTimeout(scheduleLoadTimer);
 }
 
 function renderCards() {
@@ -917,6 +923,10 @@ async function boot() {
     if (event.target === $("historyModal")) closeHistory();
   });
   $("closeScheduleButton").addEventListener("click", closeSchedule);
+  $("scheduleFrame").addEventListener("load", () => {
+    window.clearTimeout(scheduleLoadTimer);
+    $("scheduleFrameStatus").hidden = true;
+  });
   $("scheduleModal").addEventListener("click", (event) => {
     if (event.target === $("scheduleModal")) closeSchedule();
   });

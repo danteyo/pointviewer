@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes Dashboard</title>
-    <link rel="stylesheet" href="/app.css?v=37" />
+    <link rel="stylesheet" href="/app.css?v=38" />
   </head>
   <body>
     <main class="shell">
@@ -215,7 +215,8 @@
           </div>
         </div>
         <div class="schedule-frame-wrap">
-          <iframe id="scheduleFrame" src="about:blank" title="调度" loading="lazy"
+          <p id="scheduleFrameStatus" class="schedule-frame-status">正在加载调度页面...</p>
+          <iframe id="scheduleFrame" src="about:blank" title="调度"
                   referrerpolicy="no-referrer" allow="fullscreen"></iframe>
         </div>
       </section>
@@ -223,6 +224,6 @@
 
     <p id="configMessage" class="toast-message" role="status" aria-live="polite"></p>
 
-    <script src="/app.js?v=37"></script>
+    <script src="/app.js?v=38"></script>
   </body>
 </html>
