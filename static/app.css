@@ -1319,6 +1319,13 @@ button:disabled {
 
   .schedule-frame-wrap {
     border-radius: 12px;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #scheduleFrame {
+    width: 1100px;
+    max-width: none;
   }
 
   .trend-head {

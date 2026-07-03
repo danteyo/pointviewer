@@ -151,8 +151,9 @@ function openSchedule() {
   $("scheduleFrameStatus").hidden = false;
   $("scheduleFrameStatus").textContent = "正在加载调度页面...";
   const frame = $("scheduleFrame");
+  const scale = window.matchMedia("(max-width: 720px)").matches ? "0.9" : "1";
   window.clearTimeout(scheduleLoadTimer);
-  frame.src = `${SCHEDULE_URL}/?embedded=1&t=${Date.now()}`;
+  frame.src = `${SCHEDULE_URL}/?scale=${scale}&t=${Date.now()}`;
   $("scheduleOpenExternal").href = SCHEDULE_URL;
   scheduleLoadTimer = window.setTimeout(() => {
     $("scheduleFrameStatus").hidden = false;
