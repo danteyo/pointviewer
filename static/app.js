@@ -255,17 +255,17 @@ async function refreshMetrics() {
   const status = $("metricsRefreshStatus");
   button.disabled = true;
   button.textContent = "刷新中...";
-  status.textContent = "正在扫描已配置规则";
+  status.textContent = "正在扫描增量文件";
   status.classList.remove("error-text");
   try {
     const result = await api("/api/cron-scan", {
       method: "POST",
-      body: JSON.stringify({ limit_per_source: 1, rescan: true }),
+      body: JSON.stringify({ limit_per_source: 0 }),
     });
     await loadMetrics();
     if (!$("historyModal").hidden && state.selectedKey) await loadHistory();
     const errorText = result.errors?.length ? `，${result.errors.length} 个错误：${result.errors[0].error}` : "";
-    status.textContent = `已刷新并更新页面：扫描 ${result.files} 个文件，写入 ${result.points} 个点${errorText}`;
+    status.textContent = `已刷新并更新页面：扫描 ${result.files} 个增量文件，写入 ${result.points} 个点${errorText}`;
     status.classList.toggle("error-text", Boolean(result.errors?.length));
   } catch (error) {
     status.textContent = error.message;
