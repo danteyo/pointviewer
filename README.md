@@ -128,11 +128,13 @@ python3 scripts/scan_cron_outputs.py
 python3 scripts/scan_cron_outputs.py --sync --source-id e6a852568717
 ```
 
-每 10 分钟扫描一次的 crontab 示例：
+每天凌晨 00:05 执行一次增量扫描的 crontab 示例：
 
 ```cron
-*/10 * * * * cd /opt/hermes-dashboard && set -a && . ./.env && set +a && /usr/bin/python3 scripts/scan_cron_outputs.py >> data/cron-scan.log 2>&1
+5 0 * * * cd /opt/hermes-dashboard && set -a && . ./.env && set +a && /usr/bin/python3 scripts/scan_cron_outputs.py >> data/cron-scan.log 2>&1
 ```
+
+同样的示例也放在 `examples/hermes_dashboard_daily.cron`，可以按实际安装路径调整后加入 `crontab -e`。
 
 如果某个目录文件特别多，可以临时加 `--limit-per-source 100` 只扫描每个来源最新 100 个文件。
 
