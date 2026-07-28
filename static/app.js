@@ -354,6 +354,25 @@ function drawSmoothLine(ctx, chartPoints) {
   });
 }
 
+function chartValueBounds(values) {
+  let minValue = Math.min(...values);
+  let maxValue = Math.max(...values);
+  const center = (minValue + maxValue) / 2;
+  const rawSpan = maxValue - minValue;
+  const base = Math.max(Math.abs(center), Math.abs(minValue), Math.abs(maxValue), 1);
+  const minimumVisibleSpan = base * 0.002;
+  const span = Math.max(rawSpan, minimumVisibleSpan);
+  const padding = Math.max(span * 0.12, base * 0.0005);
+  if (rawSpan === 0) {
+    minValue = center - span / 2;
+    maxValue = center + span / 2;
+  }
+  return {
+    minValue: minValue - padding,
+    maxValue: maxValue + padding,
+  };
+}
+
 function drawChart(metric, points, hoverIndex = -1) {
   const canvas = $("trendCanvas");
   const ctx = canvas.getContext("2d");
@@ -377,16 +396,13 @@ function drawChart(metric, points, hoverIndex = -1) {
 
   const values = points.map((point) => Number(point.value));
   const times = points.map((point) => Number(point.recorded_at));
-  let minValue = Math.min(...values);
-  let maxValue = Math.max(...values);
-  if (minValue === maxValue) {
-    minValue -= 1;
-    maxValue += 1;
-  }
+  const bounds = chartValueBounds(values);
+  const minValue = bounds.minValue;
+  const maxValue = bounds.maxValue;
   const minTime = Math.min(...times);
   const maxTime = Math.max(...times);
   const timeSpan = Math.max(1, maxTime - minTime);
-  const valueSpan = Math.max(1, maxValue - minValue);
+  const valueSpan = maxValue - minValue;
   const chartWidth = width - pad.left - pad.right;
   const chartHeight = height - pad.top - pad.bottom;
   const x = (time) => pad.left + ((time - minTime) / timeSpan) * chartWidth;
